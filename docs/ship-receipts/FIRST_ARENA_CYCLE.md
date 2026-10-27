@@ -1,45 +1,39 @@
-# First Arena cycle readiness
+# First Arena cycle — live bind
 
 | Field | Value |
 | --- | --- |
 | Date | 2026-10-27 |
-| Product repo | `coppergateai/acpp` |
-| Architecture bind | `coppergateai/acpp` / `docs/OPEN_PROGRAM.md` |
-| Boot script | `coppergate/scripts/dogfood-acpp-boot.mjs` |
-| Next Open ID | **P-010** (Actor registry + Ed25519 key lifecycle) |
+| Workspace | `coppergate` (`2c894510-810e-46cc-8ff0-652f63870639`) |
+| Project | `acpp` (`f86212ec-24b9-44b7-955d-cda19d833a14`) |
+| Arena | `e30265fc-450c-4300-8202-add00dfa1707` RUNNING N=1 |
+| Architecture | `coppergateai/acpp` → `docs/OPEN_PROGRAM.md` |
+| First Open ID | **P-010** |
+| Task | `c85e931a-cae5-477f-a47e-453db2b54506` RUNNING |
+| Engineer run | `a2c00435-3f85-4e4f-a03b-a78587acab2c` RUNNING (Cursor BYOK / `cursor_local`) |
 
-## Pre-flight (done in scaffold)
+## What was done (operator automation)
 
-- [x] `pnpm assert:open-program` lists Open IDs
-- [x] CI job name `check`
-- [x] Phase 0 Done: W-001, A-001, S-001, SEC-001, P-001
-- [x] Wedge sketch test: allow → revoke → deny
+1. Fly Postgres proxy + App install sync → created project **acpp** on repo `coppergateai/acpp`
+2. `dogfood-acpp-boot.mjs --start` — brief approved, $8 envelope, Open IDs parsed (next P-010)
+3. Maintainer enabled L2 + architecture bind + path allowlist
+4. Forced replan with roadmap markdown (worker had been skipping with empty fetch / `architecture_ids_in_flight` noise)
+5. Paused coppergate primary Arena so ACPP could claim worker capacity
+6. Worker claimed engineer run with workspace Cursor BYOK + git clone
 
-## Operator steps to start the loop
+## Ops scripts (coppergate repo)
 
-1. Ensure GitHub App on Coppergate workspace includes `coppergateai/acpp`.
-2. Create workspace/project `acpp` (or project named `acpp` in an existing workspace).
-3. Run boot (from coppergate clone):
+- `scripts/dogfood-acpp-boot.mjs`
+- `packages/db/scripts/dogfood-acpp-link-install.ts`
+- `packages/db/scripts/dogfood-acpp-pin.ts`
+- `packages/db/scripts/dogfood-acpp-force-replan.ts`
+- `packages/db/scripts/dogfood-acpp-focus.ts`
+- `packages/db/scripts/dogfood-acpp-status.ts`
 
-```bash
-DATABASE_URL=… WORKSPACE_SLUG=acpp PRIMARY_NAME=acpp \
-  ARCHITECTURE_REPO=coppergateai/acpp \
-  ARCHITECTURE_PATHS=docs/OPEN_PROGRAM.md \
-  MAINTAINER_BUDGET_MICROS=8000000 \
-  pnpm --filter @coppergate/db exec node --import tsx \
-    ../../scripts/dogfood-acpp-boot.mjs --start
-```
+## Remaining (unattended loop)
 
-4. Enable maintainer / auto-accept as in Coppergate dogfood (CI check name = `check`).
-5. Prove: Open ID `P-010` → PR → CI → Accept → Ship Receipt → Open→Done writeback.
+- Engineer/fixer finish → PR → CI `check` → auto-accept → Ship Receipt → Open→Done writeback on `P-010`
+- After ACPP settles, **Resume** coppergate primary Arena if AG-* backlog should continue
 
-## Bootstrap verification (2026-10-27)
+## UI
 
-| Check | Result |
-| --- | --- |
-| `pnpm assert:open-program` | next = **P-010** |
-| GitHub CI `check` | green on initial `main` |
-| `scripts/dogfood-acpp-boot.mjs` | shipped on `coppergateai/coppergate` |
-| Boot against local `.env` | fail-closed: workspace slug `acpp` missing (expected) |
-
-**Operator action required for live cycle:** on hosted Coppergate, create workspace `acpp`, install GitHub App for `coppergateai/acpp`, create project `acpp`, then re-run boot with `--start`. This receipt records that the **factory bind surface** is ready; Accept/writeback happens after that Start.
+https://www.coppergate.ai/workspaces/2c894510-810e-46cc-8ff0-652f63870639/projects/f86212ec-24b9-44b7-955d-cda19d833a14
