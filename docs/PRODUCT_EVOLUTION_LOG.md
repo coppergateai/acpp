@@ -26,9 +26,13 @@
 
 - `pnpm install && pnpm typecheck && pnpm test && pnpm build`
 
-### Remaining (Open Program)
+### 2026-10-27 — P-010 actor registry
 
-- `P-010` actor registry + keys
+- `@acpp/identity` `ActorRegistry` + Ed25519 lifecycle (register, verify, rotate, suspend)
+- `@acpp/db` Drizzle/SQLite schema for Actor + IdentityKey
+- `docs/guides/identity-registry.md`
+
+### Remaining (Open Program)
 - `S-010` signal persistence + replay
 - `SEC-010` grants API + approval bind
 - `P-020` real GitHub connector
