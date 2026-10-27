@@ -16,7 +16,7 @@ Handles (e.g. `@research-agent`) may change. Addresses must not silently transfe
 
 - Stable address, actor type, display name
 - Public verification material / key ids
-- Controller / workspace relationship
+- Controller / workspace relationship (see [`workspace.md`](./workspace.md))
 - Capability references (permissioned)
 - Visibility settings, lifecycle status
 - Verification status + timestamps
