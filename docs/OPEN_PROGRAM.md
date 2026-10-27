@@ -19,7 +19,7 @@ ARCHITECTURE_PATHS=docs/OPEN_PROGRAM.md
 
 | Status | ID | Title | Notes |
 | --- | --- | --- | --- |
-| Open | P-010 | Actor registry + stable address + Ed25519 key lifecycle | Register, verify, rotate, suspend — `@acpp/identity` + db |
+| Done | P-010 | Actor registry + stable address + Ed25519 key lifecycle | `@acpp/identity` + `@acpp/db`; `docs/guides/identity-registry.md` |
 | Open | S-010 | Authenticated signal send/receive + replay/idempotency | Persist Signal + SignalDelivery; reject replay |
 | Open | SEC-010 | PermissionGrant + expire + revoke + approval-bound action | Wire `@acpp/policy` into API; approval binding |
 | Open | P-020 | GitHub connection once + per-agent scope + one protected op | Real HTTP; credential isolation |
