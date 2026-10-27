@@ -1,0 +1,12 @@
+---
+description: ACPP product locks — wedge, signals distinction, pricing
+alwaysApply: true
+---
+
+# ACPP product locks
+
+- **Wedge:** identity → GitHub connect once → scoped grant → protected action → receipt → revoke/deny. See `docs/WEDGE.md`.
+- **Spendable work:** only Open rows in `docs/OPEN_PROGRAM.md`. Do not invent from `PRODUCT.md`.
+- **Signals:** ACPP protocol signals ≠ Coppergate `@coppergate/signals` product-event ingest. Do not merge those packages/concepts.
+- **Pricing:** Community / self-host / open protocol first. Do not add paid hosted plan cards or checkout until an explicit product ask.
+- **Scope:** No marketplace, reputation scores, or universal MCP connector sprawl in MVP.
