@@ -33,4 +33,13 @@ DATABASE_URL=… WORKSPACE_SLUG=acpp PRIMARY_NAME=acpp \
 4. Enable maintainer / auto-accept as in Coppergate dogfood (CI check name = `check`).
 5. Prove: Open ID `P-010` → PR → CI → Accept → Ship Receipt → Open→Done writeback.
 
-Live Arena Accept cannot be completed from this bootstrap alone without a hosted `DATABASE_URL` + GitHub install; this receipt records that the **factory bind surface** is ready for that cycle.
+## Bootstrap verification (2026-10-27)
+
+| Check | Result |
+| --- | --- |
+| `pnpm assert:open-program` | next = **P-010** |
+| GitHub CI `check` | green on initial `main` |
+| `scripts/dogfood-acpp-boot.mjs` | shipped on `coppergateai/coppergate` |
+| Boot against local `.env` | fail-closed: workspace slug `acpp` missing (expected) |
+
+**Operator action required for live cycle:** on hosted Coppergate, create workspace `acpp`, install GitHub App for `coppergateai/acpp`, create project `acpp`, then re-run boot with `--start`. This receipt records that the **factory bind surface** is ready; Accept/writeback happens after that Start.
