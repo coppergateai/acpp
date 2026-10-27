@@ -34,3 +34,9 @@ Registration → key enrollment → verification → capability publication → 
 ## MVP crypto
 
 Ed25519 for sender authentication on signals. Exact canonicalization: `signal.md`.
+
+## MVP implementation (P-010)
+
+- Stable addresses via `@acpp/core` `createActorAddress` / `@acpp/identity` allocation.
+- Registry operations: register, verify (signature), rotate, suspend — see [`docs/guides/identity-registry.md`](../guides/identity-registry.md).
+- Persistence: `@acpp/db` SQLite tables `actors`, `identity_keys`, `workspaces`.
