@@ -1,37 +1,9 @@
-import { type ActorAddress, type ActorType } from "@acpp/core";
-
-export type IdentityStatus = "active" | "suspended" | "revoked";
-
-export type IdentityRecord = {
-  address: ActorAddress;
-  actorType: ActorType;
-  displayName: string;
-  status: IdentityStatus;
-  /** Public verification material references (never private keys). */
-  keyIds: string[];
-  workspaceId: string;
-  createdAt: string;
-};
-
-export type IdentityKey = {
-  keyId: string;
-  address: ActorAddress;
-  alg: "Ed25519";
-  publicKey: string;
-  status: "active" | "rotated" | "revoked";
-  createdAt: string;
-};
-
-/**
- * Identity verification is distinct from authorization.
- * A valid signature proves key control, not permission to act.
- */
-export type VerificationResult = {
-  ok: boolean;
-  address?: ActorAddress;
-  keyId?: string;
-  reason?: string;
-};
+export type {
+  IdentityKey,
+  IdentityRecord,
+  IdentityStatus,
+  VerificationResult,
+} from "./types.js";
 
 export function assertIdentityNotAuthority(
   verified: boolean,
@@ -45,3 +17,13 @@ export function assertIdentityNotAuthority(
     throw new Error("Invariant violated: authorization without identity verification");
   }
 }
+
+export { allocateActorAddress, newStableActorId } from "./address.js";
+export {
+  generateEd25519KeyPair,
+  newKeyId,
+  signEd25519,
+  verifyEd25519,
+  type Ed25519KeyMaterial,
+} from "./crypto.js";
+export { ActorRegistry, type RegisterActorInput, type RotateKeyInput } from "./registry.js";
