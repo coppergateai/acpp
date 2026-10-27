@@ -5,6 +5,7 @@ import { LOGICAL_ENTITIES } from "./index.ts";
 describe("@acpp/db", () => {
   it("lists logical entities from product model", () => {
     assert.ok(LOGICAL_ENTITIES.includes("Actor"));
+    assert.ok(LOGICAL_ENTITIES.includes("IdentityKey"));
     assert.ok(LOGICAL_ENTITIES.includes("Receipt"));
   });
 });
