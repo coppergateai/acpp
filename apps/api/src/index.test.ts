@@ -772,4 +772,159 @@ describe("@acpp/api", () => {
       assert.equal(mcpBody.tools.length, 0);
     });
   });
+
+  it("connects MCP once and invokes permitted tools with policy gate (P-050)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "mcp-wedge",
+      slug: "mcp-wedge",
+      displayName: "MCP wedge",
+    });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner-mcp",
+      displayName: "Owner",
+    });
+    const agent = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "mcp-agent",
+      displayName: "MCP agent",
+    });
+    const other = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "mcp-other",
+      displayName: "Other agent",
+    });
+
+    const serverUrl = "http://127.0.0.1:9191/mcp";
+    const mockFetch: typeof fetch = async (input, init) => {
+      const url = String(input);
+      assert.equal(url, serverUrl);
+      const body = JSON.parse(String(init?.body)) as {
+        method: string;
+        params: { name: string; arguments: Record<string, unknown> };
+      };
+      assert.equal(body.method, "tools/call");
+      if (body.params.name === "search_docs") {
+        return new Response(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            result: { structuredContent: { answer: body.params.arguments.query } },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          error: { message: "unknown_tool" },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    };
+
+    await withServer(
+      registry,
+      async (port) => {
+        const base = `http://127.0.0.1:${port}`;
+
+        const connect = await fetch(
+          `${base}/v1/workspaces/${ws.workspaceId}/connections/mcp`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              serverUrl,
+              allowedTools: ["search_docs"],
+              accessToken: "mcp_secret_token",
+            }),
+          },
+        );
+        assert.equal(connect.status, 201);
+        const connected = (await connect.json()) as {
+          connection: { connectionId: string; allowedTools: string[] };
+        };
+        const connectionId = connected.connection.connectionId;
+        assert.equal(
+          JSON.stringify(connected).includes("mcp_secret_token"),
+          false,
+        );
+
+        const resource = `mcp:connection:${connectionId}:tool:search_docs`;
+        await fetch(`${base}/v1/grants`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            grantedBy: owner.address,
+            subject: agent.address,
+            resource,
+            action: "invoke",
+          }),
+        });
+
+        const discovery = await fetch(
+          `${base}/v1/mcp/capabilities?workspaceId=${encodeURIComponent(ws.workspaceId)}&subject=${encodeURIComponent(agent.address)}&connectionId=${encodeURIComponent(connectionId)}`,
+        );
+        assert.equal(discovery.status, 200);
+        const discoveryBody = (await discovery.json()) as {
+          tools: { name: string }[];
+        };
+        assert.deepEqual(
+          discoveryBody.tools.map((t) => t.name),
+          ["search_docs"],
+        );
+
+        const denied = await fetch(`${base}/v1/mcp/tools/invoke`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: other.address,
+            toolName: "search_docs",
+            arguments: { query: "nope" },
+          }),
+        });
+        assert.equal(denied.status, 403);
+
+        const ok = await fetch(`${base}/v1/mcp/tools/invoke`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: agent.address,
+            toolName: "search_docs",
+            arguments: { query: "incident runbook" },
+          }),
+        });
+        assert.equal(ok.status, 200);
+        const okBody = (await ok.json()) as {
+          execution: { ok: boolean; result: { answer: string } };
+        };
+        assert.equal(okBody.execution.ok, true);
+        assert.equal(okBody.execution.result.answer, "incident runbook");
+
+        const offAllowlist = await fetch(`${base}/v1/mcp/tools/invoke`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: agent.address,
+            toolName: "run_shell",
+            arguments: {},
+          }),
+        });
+        assert.equal(offAllowlist.status, 403);
+      },
+      { mcpHttp: { fetch: mockFetch }, mcpAllowLocalhost: true },
+    );
+  });
 });
