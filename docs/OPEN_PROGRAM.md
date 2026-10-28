@@ -23,7 +23,7 @@ Maps to PRODUCT.md **§13 MVP**, **§22 Phase 1**, and **§23 acceptance**. Prov
 | Status | ID | Title | Notes |
 | --- | --- | --- | --- |
 | Open | P-010 | Actor registry + stable address + Ed25519 key lifecycle | PRODUCT §6 / §13.2 Identity — register, verify, rotate, suspend; `acpp:agent:…` + `@acpp/identity` + db |
-| Open | P-011 | Workspace + ownership + actor types | PRODUCT §6.1 / §14.4 — Workspace, Human/Agent/Service/Org, OwnershipRelationship; identity ≠ authority |
+| Done | P-011 | Workspace + ownership + actor types | PRODUCT §6.1 / §14.4 — `@acpp/db` WorkspaceStore; `docs/protocol/workspace.md` |
 | Open | S-010 | Authenticated signal send/receive + replay/idempotency | PRODUCT §8 / §13.2 Signals — persist Signal + SignalDelivery; reject replay |
 | Open | S-011 | Signal categories + correlation + delivery acks | PRODUCT §8.1–8.4 — Event/Request/Offer/Response/Approval/Revocation; delivery ≠ execution |
 | Open | SEC-010 | PermissionGrant + expire + revoke + approval-bound action | PRODUCT §9 / §13.2 Authorization — wire `@acpp/policy` into API |
@@ -38,6 +38,7 @@ Maps to PRODUCT.md **§13 MVP**, **§22 Phase 1**, and **§23 acceptance**. Prov
 | Open | A-012 | Local dev + reproducible allow and deny demos | PRODUCT §17.1 — runnable quickstart shows success **and** policy denial |
 | Open | P-022 | Documented MCP integration path | PRODUCT §10 / §13.2 — gateway sketch + security boundary notes; not a marketplace |
 | Open | AG-001 | CI check name honesty for Coppergate auto-accept | Job name `check` must match `CI_REQUIRED_CHECK_NAMES` |
+| Open | AG-002 | Lockfile sync on dependency edits | Any `package.json` change must refresh `pnpm-lock.yaml`; CI `assert:lockfile` + Coppergate delivery refuse `lockfile_out_of_sync` |
 
 ## Phase 2 — Developer platform (later)
 

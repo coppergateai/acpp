@@ -11,7 +11,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "dev": "turbo run dev --parallel",
-    "assert:open-program": "node scripts/assert-open-program.mjs"
+    "assert:open-program": "node scripts/assert-open-program.mjs",
+    "assert:lockfile": "node scripts/assert-lockfile.mjs"
   },
   "devDependencies": {
     "turbo": "^2.5.4",

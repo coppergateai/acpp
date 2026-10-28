@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # Prefer PR number so rapid head pushes do not leave the PR with zero check runs.
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,6 +27,9 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Lockfile sync
+        run: node scripts/assert-lockfile.mjs
 
       - name: Install
         run: pnpm install --frozen-lockfile
