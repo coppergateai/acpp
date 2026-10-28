@@ -59,6 +59,24 @@ describe("@acpp/api", () => {
     });
   });
 
+  it("creates workspace via POST /v1/workspaces (P-031 onboarding)", async () => {
+    await withServer(new IdentityRegistry(), async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const res = await fetch(`${base}/v1/workspaces`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: "onboard-api",
+          slug: "onboard-api",
+          displayName: "Onboarding",
+        }),
+      });
+      assert.equal(res.status, 201);
+      const body = (await res.json()) as { workspace: { workspaceId: string } };
+      assert.match(body.workspace.workspaceId, /^ws_/);
+    });
+  });
+
   it("registers identity and verifies signature over HTTP", async () => {
     const registry = new IdentityRegistry();
     const ws = registry.workspace.createWorkspace({
