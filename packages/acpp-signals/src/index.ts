@@ -8,3 +8,7 @@ export {
   type EnvelopeValidationError,
   type SignableSignalFields,
 } from "./canonical.js";
+export {
+  validateSignalCategoryRules,
+  type CategoryValidationError,
+} from "./categories.js";

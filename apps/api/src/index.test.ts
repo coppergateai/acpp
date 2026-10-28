@@ -11,6 +11,7 @@ function signedSignal(
   keyId: string,
   sender: string,
   signalId: string,
+  overrides: Partial<SignalEnvelope> = {},
 ): SignalEnvelope {
   const partial: SignalEnvelope = {
     protocolVersion: ACPP_PROTOCOL_VERSION,
@@ -22,6 +23,7 @@ function signedSignal(
     contentType: "application/json",
     payload: { via: "api" },
     auth: { alg: "Ed25519", keyId, signature: "" },
+    ...overrides,
   };
   const signature = signMessage(signingMessage(partial), material.privateKey);
   return { ...partial, auth: { alg: "Ed25519", keyId, signature } };
@@ -144,6 +146,58 @@ describe("@acpp/api", () => {
       assert.equal(replay.status, 409);
       const replayBody = (await replay.json()) as { error: string };
       assert.equal(replayBody.error, "replay_rejected");
+    });
+  });
+
+  it("lists signals by correlationId with delivery ack separate from execution", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "corr-api",
+      slug: "corr-api",
+      displayName: "Corr API",
+    });
+    const material = generateEd25519KeyPair();
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const reg = await fetch(`${base}/v1/workspaces/${ws.workspaceId}/identities`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actorType: "agent",
+          actorId: "01JCAPI",
+          displayName: "Corr agent",
+          publicKey: material.publicKey,
+        }),
+      });
+      const registered = (await reg.json()) as {
+        identity: { address: string };
+        key: { keyId: string };
+      };
+      const threadId = "thread_http_01";
+      const request = signedSignal(
+        material,
+        registered.key.keyId,
+        registered.identity.address,
+        "sig_http_req1",
+        { type: "request", correlationId: threadId },
+      );
+      const submit = await fetch(`${base}/v1/signals`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(request),
+      });
+      assert.equal(submit.status, 201);
+      const created = (await submit.json()) as {
+        delivery: { ackState: string; executionState: string };
+      };
+      assert.equal(created.delivery.ackState, "acknowledged");
+      assert.equal(created.delivery.executionState, "not_started");
+      const list = await fetch(
+        `${base}/v1/signals?correlationId=${encodeURIComponent(threadId)}`,
+      );
+      assert.equal(list.status, 200);
+      const body = (await list.json()) as { signals: unknown[] };
+      assert.equal(body.signals.length, 1);
     });
   });
 });

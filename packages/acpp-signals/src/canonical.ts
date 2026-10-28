@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ActorAddress, SignalEnvelope, SignalType } from "@acpp/core";
 import { ACPP_PROTOCOL_VERSION, isActorAddress } from "@acpp/core";
+import { validateSignalCategoryRules } from "./categories.js";
 
 const SIGNAL_TYPES: SignalType[] = [
   "event",
@@ -107,7 +108,10 @@ export type EnvelopeValidationError =
   | "invalid_content_type"
   | "missing_auth"
   | "invalid_auth_alg"
-  | "payload_too_large";
+  | "payload_too_large"
+  | "missing_correlation_id"
+  | "invalid_correlation_id"
+  | "invalid_causation_id";
 
 export function validateSignalEnvelope(
   envelope: SignalEnvelope,
@@ -121,6 +125,10 @@ export function validateSignalEnvelope(
   }
   if (!SIGNAL_TYPES.includes(envelope.type)) {
     return { ok: false, reason: "invalid_type" };
+  }
+  const categoryRules = validateSignalCategoryRules(envelope);
+  if (!categoryRules.ok) {
+    return { ok: false, reason: categoryRules.reason };
   }
   if (!isActorAddress(envelope.sender)) {
     return { ok: false, reason: "invalid_sender" };

@@ -1,4 +1,4 @@
-import type { SignalEnvelope } from "@acpp/core";
+import type { SignalDeliveryAckState, SignalEnvelope, SignalExecutionState } from "@acpp/core";
 import {
   envelopeContentHash,
   signingMessage,
@@ -15,12 +15,21 @@ export type SignalRecord = {
   receivedAt: string;
 };
 
+/** @deprecated Prefer `ackState`; retained for S-010 callers. */
 export type SignalDeliveryStatus = "accepted" | "rejected";
 
 export type SignalDeliveryRecord = {
   deliveryId: string;
   signalId: string;
+  /** Legacy mirror of gateway accept/reject. */
   status: SignalDeliveryStatus;
+  /** Explicit delivery acknowledgement (PRODUCT §8.4). */
+  ackState: SignalDeliveryAckState;
+  /**
+   * Side-effect execution lifecycle (PRODUCT §14.5).
+   * Gateway delivery leaves this at `not_started` — delivery ≠ execution.
+   */
+  executionState: SignalExecutionState;
   reason?: string;
   processedAt: string;
 };
@@ -43,7 +52,8 @@ export type SubmitSignalResult =
         | "unknown_key"
         | "key_not_active"
         | "replay_rejected"
-        | "signal_id_conflict";
+        | "signal_id_conflict"
+        | "unknown_causation";
       detail?: string;
       existing?: { signal: SignalRecord; delivery: SignalDeliveryRecord };
     };
@@ -55,6 +65,7 @@ export type SubmitSignalResult =
 export class SignalStore {
   readonly #signals = new Map<string, SignalRecord>();
   readonly #deliveries = new Map<string, SignalDeliveryRecord>();
+  readonly #byCorrelation = new Map<string, Set<string>>();
   readonly #identity: IdentityRegistry;
 
   constructor(identity: IdentityRegistry) {
@@ -67,6 +78,22 @@ export class SignalStore {
 
   getDelivery(signalId: string): SignalDeliveryRecord | undefined {
     return this.#deliveries.get(signalId);
+  }
+
+  listSignalsByCorrelationId(correlationId: string): SignalRecord[] {
+    const ids = this.#byCorrelation.get(correlationId);
+    if (!ids) {
+      return [];
+    }
+    const out: SignalRecord[] = [];
+    for (const signalId of ids) {
+      const record = this.#signals.get(signalId);
+      if (record) {
+        out.push(record);
+      }
+    }
+    out.sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
+    return out;
   }
 
   submitSignal(
@@ -131,6 +158,13 @@ export class SignalStore {
       return { ok: false, reason };
     }
 
+    if (
+      envelope.causationId !== undefined &&
+      !this.#signals.has(envelope.causationId)
+    ) {
+      return { ok: false, reason: "unknown_causation" };
+    }
+
     if (!isWorkspaceId(identity.workspaceId)) {
       return { ok: false, reason: "invalid_envelope", detail: "invalid_workspace" };
     }
@@ -147,11 +181,21 @@ export class SignalStore {
       deliveryId: options.deliveryId ?? `dlv_${envelope.signalId}`,
       signalId: envelope.signalId,
       status: "accepted",
+      ackState: "acknowledged",
+      executionState: "not_started",
       processedAt: receivedAt,
     };
 
     this.#signals.set(signal.signalId, signal);
     this.#deliveries.set(signal.signalId, delivery);
+    if (envelope.correlationId) {
+      let bucket = this.#byCorrelation.get(envelope.correlationId);
+      if (!bucket) {
+        bucket = new Set();
+        this.#byCorrelation.set(envelope.correlationId, bucket);
+      }
+      bucket.add(signal.signalId);
+    }
 
     return {
       ok: true,
