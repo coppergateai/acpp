@@ -47,7 +47,7 @@ Query: `workspaceId`, `subject`, `connectionId`; optional comma-separated `allow
 
 Only tools with an active grant on resource `mcp:connection:{connectionId}:tool:{toolName}` and action `invoke` (or `tools.call`) are returned. Optional catalog metadata is filtered with `filterPermittedMcpTools` from `@acpp/mcp`.
 
-MCP connection registration and invoke remain sketch routes until P-050; discovery is implemented against grants today.
+MCP connect and invoke are live (P-050); discovery uses stored connection allowlists when the connection exists.
 
 ## Related
 
