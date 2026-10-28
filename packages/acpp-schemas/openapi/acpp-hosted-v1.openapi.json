@@ -132,6 +132,37 @@
         }
       }
     },
+    "/v1/workspaces": {
+      "post": {
+        "tags": ["identity"],
+        "operationId": "createWorkspace",
+        "summary": "Create a workspace tenant (local dev / quickstart)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["id", "slug", "displayName"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Stable id suffix used to derive ws_… workspaceId"
+                  },
+                  "slug": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+                  "displayName": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Workspace created" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
     "/v1/workspaces/{workspaceId}/identities": {
       "post": {
         "tags": ["identity"],
