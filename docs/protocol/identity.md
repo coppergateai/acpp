@@ -64,4 +64,4 @@ Register body:
 
 ## MVP crypto
 
-Ed25519 for sender authentication on signals. Envelope canonicalization for production signals: `signal.md` (frozen in S-010).
+Ed25519 for sender authentication on signals. Envelope canonicalization: `signal.md` (frozen in S-010 via `@acpp/signals`).
