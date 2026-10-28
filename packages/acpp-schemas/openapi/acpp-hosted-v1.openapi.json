@@ -1,0 +1,698 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ACPP Hosted API",
+    "version": "1.0.0",
+    "description": "HTTP API for the hosted ACPP service: identity, signals, authorization, receipts, and connectors. Portable protocol message shapes live under `/v1/protocol/schemas` and in `@acpp/schemas` (separate from this service contract)."
+  },
+  "servers": [{ "url": "http://127.0.0.1:3000", "description": "Local dev" }],
+  "tags": [
+    { "name": "meta", "description": "Health and machine-readable docs" },
+    { "name": "identity", "description": "Actor registry and keys" },
+    { "name": "signals", "description": "Authenticated signal delivery" },
+    { "name": "authorization", "description": "Grants, evaluation, execution gates" },
+    { "name": "receipts", "description": "Audit chain records" },
+    { "name": "connections", "description": "Workspace connectors" },
+    { "name": "github", "description": "GitHub protected actions" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["meta"],
+        "operationId": "getHealth",
+        "summary": "Liveness probe",
+        "responses": {
+          "200": {
+            "description": "Service is up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["ok", "protocolVersion"],
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "protocolVersion": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": ["meta"],
+        "operationId": "getReady",
+        "summary": "Readiness probe",
+        "responses": {
+          "200": {
+            "description": "Service is ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["ok", "protocolVersion"],
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "protocolVersion": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/openapi.json": {
+      "get": {
+        "tags": ["meta"],
+        "operationId": "getOpenApi",
+        "summary": "OpenAPI document for this hosted API",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 JSON",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/protocol/schemas": {
+      "get": {
+        "tags": ["meta"],
+        "operationId": "listProtocolSchemas",
+        "summary": "Manifest of portable protocol JSON Schemas",
+        "responses": {
+          "200": {
+            "description": "Schema manifest",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProtocolSchemaManifest" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/protocol/schemas/{schemaId}": {
+      "get": {
+        "tags": ["meta"],
+        "operationId": "getProtocolSchema",
+        "summary": "Fetch one portable protocol JSON Schema",
+        "parameters": [
+          {
+            "name": "schemaId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "signal-envelope",
+                "permission-grant",
+                "authorization-decision",
+                "receipt"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JSON Schema document",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/identities": {
+      "post": {
+        "tags": ["identity"],
+        "operationId": "registerIdentity",
+        "summary": "Register an actor in a workspace",
+        "parameters": [{ "$ref": "#/components/parameters/workspaceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterIdentityRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Identity registered" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/v1/identities/{address}": {
+      "get": {
+        "tags": ["identity"],
+        "operationId": "getIdentity",
+        "parameters": [{ "$ref": "#/components/parameters/actorAddress" }],
+        "responses": {
+          "200": { "description": "Identity and keys" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/identities/{address}/keys/rotate": {
+      "post": {
+        "tags": ["identity"],
+        "operationId": "rotateIdentityKey",
+        "parameters": [{ "$ref": "#/components/parameters/actorAddress" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["newPublicKey"],
+                "properties": {
+                  "newPublicKey": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Key rotated" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/v1/identities/{address}/suspend": {
+      "post": {
+        "tags": ["identity"],
+        "operationId": "suspendIdentity",
+        "parameters": [{ "$ref": "#/components/parameters/actorAddress" }],
+        "responses": {
+          "200": { "description": "Identity suspended" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/signals": {
+      "get": {
+        "tags": ["signals"],
+        "operationId": "listSignalsByCorrelation",
+        "summary": "List signals sharing a correlation id",
+        "parameters": [
+          {
+            "name": "correlationId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Matching signals" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "post": {
+        "tags": ["signals"],
+        "operationId": "submitSignal",
+        "summary": "Submit an authenticated signal envelope",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "Portable SignalEnvelope — see GET /v1/protocol/schemas/signal-envelope",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Signal accepted" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "description": "Policy or identity rejection" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/v1/signals/{signalId}": {
+      "get": {
+        "tags": ["signals"],
+        "operationId": "getSignal",
+        "parameters": [{ "$ref": "#/components/parameters/signalId" }],
+        "responses": {
+          "200": { "description": "Signal and delivery state" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/signals/{signalId}/receipt": {
+      "get": {
+        "tags": ["receipts"],
+        "operationId": "getSignalReceipt",
+        "parameters": [
+          { "$ref": "#/components/parameters/signalId" },
+          { "$ref": "#/components/parameters/workspaceIdQuery" }
+        ],
+        "responses": {
+          "200": { "description": "Receipt for signal" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/receipts": {
+      "get": {
+        "tags": ["receipts"],
+        "operationId": "listReceipts",
+        "parameters": [{ "$ref": "#/components/parameters/workspaceIdQuery" }],
+        "responses": {
+          "200": { "description": "Receipt list" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["receipts"],
+        "operationId": "recordReceipt",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Receipt recorded" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/v1/receipts/{receiptId}": {
+      "get": {
+        "tags": ["receipts"],
+        "operationId": "getReceipt",
+        "parameters": [
+          { "$ref": "#/components/parameters/receiptId" },
+          { "$ref": "#/components/parameters/workspaceIdQuery" }
+        ],
+        "responses": {
+          "200": { "description": "Receipt" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/grants": {
+      "get": {
+        "tags": ["authorization"],
+        "operationId": "listGrants",
+        "parameters": [
+          { "$ref": "#/components/parameters/workspaceIdQuery" },
+          {
+            "name": "subject",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/ActorAddress" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Grants" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      },
+      "post": {
+        "tags": ["authorization"],
+        "operationId": "createGrant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateGrantRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Grant created" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/v1/grants/{grantId}/revoke": {
+      "post": {
+        "tags": ["authorization"],
+        "operationId": "revokeGrant",
+        "parameters": [{ "$ref": "#/components/parameters/grantId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workspaceId"],
+                "properties": {
+                  "workspaceId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Grant revoked" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/v1/authorization/evaluate": {
+      "post": {
+        "tags": ["authorization"],
+        "operationId": "evaluateAuthorization",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AuthzRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Authorization decision" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "403": { "description": "Tenant boundary violation" }
+        }
+      }
+    },
+    "/v1/authorization/execute": {
+      "post": {
+        "tags": ["authorization"],
+        "operationId": "gateProtectedAction",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ExecuteGateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Action allowed" },
+          "403": { "description": "Denied or tenant boundary" }
+        }
+      }
+    },
+    "/v1/approvals": {
+      "post": {
+        "tags": ["authorization"],
+        "operationId": "recordApproval",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Approval recorded" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/v1/verify": {
+      "post": {
+        "tags": ["identity"],
+        "operationId": "verifySignature",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VerifySignatureRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Verification result" },
+          "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/connections/github": {
+      "post": {
+        "tags": ["connections"],
+        "operationId": "connectGithub",
+        "parameters": [{ "$ref": "#/components/parameters/workspaceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["installationId", "accessToken"],
+                "properties": {
+                  "installationId": { "type": "string" },
+                  "accessToken": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Connection created" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/connections": {
+      "get": {
+        "tags": ["connections"],
+        "operationId": "listConnections",
+        "parameters": [{ "$ref": "#/components/parameters/workspaceId" }],
+        "responses": {
+          "200": { "description": "Connections" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/v1/github/actions/execute": {
+      "post": {
+        "tags": ["github"],
+        "operationId": "executeGithubAction",
+        "summary": "Policy-gated GitHub protected action",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Executed" },
+          "403": { "description": "Denied by policy" },
+          "502": { "description": "Upstream GitHub error" }
+        }
+      }
+    },
+    "/v1/demo/wedge-revoke-proof": {
+      "post": {
+        "tags": ["meta"],
+        "operationId": "wedgeRevokeProof",
+        "summary": "Demo: authorize, execute, revoke, deny",
+        "responses": {
+          "200": { "description": "Proof result" },
+          "500": { "description": "Proof failed" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "workspaceId": {
+        "name": "workspaceId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^ws_[A-Za-z0-9_-]+$" }
+      },
+      "workspaceIdQuery": {
+        "name": "workspaceId",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string", "pattern": "^ws_[A-Za-z0-9_-]+$" }
+      },
+      "actorAddress": {
+        "name": "address",
+        "in": "path",
+        "required": true,
+        "schema": { "$ref": "#/components/schemas/ActorAddress" }
+      },
+      "signalId": {
+        "name": "signalId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "receiptId": {
+        "name": "receiptId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "grantId": {
+        "name": "grantId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid input",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorBody" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorBody" }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflict or duplicate",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorBody" }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ActorAddress": {
+        "type": "string",
+        "pattern": "^acpp:(human|agent|service|organization|application):[A-Za-z0-9_-]+$"
+      },
+      "ErrorBody": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" },
+          "message": { "type": "string" },
+          "detail": {}
+        }
+      },
+      "ProtocolSchemaManifest": {
+        "type": "object",
+        "required": ["protocolVersion", "title", "schemas"],
+        "properties": {
+          "protocolVersion": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "schemas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "file", "summary"],
+              "properties": {
+                "id": { "type": "string" },
+                "file": { "type": "string" },
+                "summary": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "RegisterIdentityRequest": {
+        "type": "object",
+        "required": ["actorType", "displayName", "publicKey"],
+        "properties": {
+          "actorType": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent",
+              "service",
+              "organization",
+              "application"
+            ]
+          },
+          "actorId": { "type": "string" },
+          "displayName": { "type": "string" },
+          "publicKey": { "type": "string" }
+        }
+      },
+      "CreateGrantRequest": {
+        "type": "object",
+        "required": [
+          "workspaceId",
+          "grantedBy",
+          "subject",
+          "resource",
+          "action"
+        ],
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "grantedBy": { "$ref": "#/components/schemas/ActorAddress" },
+          "subject": { "$ref": "#/components/schemas/ActorAddress" },
+          "resource": { "type": "string" },
+          "action": { "type": "string" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "requiresApproval": { "type": "boolean" },
+          "grantId": { "type": "string" }
+        }
+      },
+      "AuthzRequest": {
+        "type": "object",
+        "required": ["workspaceId", "subject", "resource", "action"],
+        "properties": {
+          "workspaceId": { "type": "string" },
+          "subject": { "$ref": "#/components/schemas/ActorAddress" },
+          "resource": { "type": "string" },
+          "action": { "type": "string" },
+          "at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ExecuteGateRequest": {
+        "allOf": [
+          { "$ref": "#/components/schemas/AuthzRequest" },
+          {
+            "type": "object",
+            "required": ["payloadHash"],
+            "properties": {
+              "payloadHash": { "type": "string" },
+              "payload": {},
+              "approvalId": { "type": "string" }
+            }
+          }
+        ]
+      },
+      "VerifySignatureRequest": {
+        "type": "object",
+        "required": ["address", "keyId", "message", "signature"],
+        "properties": {
+          "address": { "$ref": "#/components/schemas/ActorAddress" },
+          "keyId": { "type": "string" },
+          "message": { "type": "string" },
+          "signature": { "type": "string" }
+        }
+      }
+    }
+  }
+}
