@@ -29,20 +29,23 @@ describe("@acpp/schemas", () => {
     }
   });
 
-  it("documents MCP gateway sketch paths separately from implemented routes", () => {
+  it("treats MCP connect + invoke as implemented hosted paths (P-050 bridge)", () => {
     const doc = loadHostedOpenApi();
-    for (const path of SKETCHED_MCP_HOSTED_PATHS) {
-      assert.ok(path in doc.paths, `missing MCP sketch path ${path}`);
-      assert.equal(
-        path in DOCUMENTED_HOSTED_PATHS,
-        false,
-        `${path} must stay sketch-only until P-050`,
+    assert.equal(SKETCHED_MCP_HOSTED_PATHS.length, 0);
+    for (const path of [
+      "/v1/workspaces/{workspaceId}/connections/mcp",
+      "/v1/mcp/tools/invoke",
+    ]) {
+      assert.ok(path in doc.paths, `missing MCP path ${path}`);
+      assert.ok(
+        (DOCUMENTED_HOSTED_PATHS as readonly string[]).includes(path),
+        `${path} must be documented as live`,
       );
-      const pathItem = doc.paths[path] as Record<string, Record<string, unknown>>;
-      for (const method of Object.values(pathItem)) {
-        assert.equal(method["x-acpp-implementation-status"], "sketch");
-      }
     }
+    const invoke = doc.paths["/v1/mcp/tools/invoke"] as {
+      post: Record<string, unknown>;
+    };
+    assert.equal(invoke.post["x-acpp-implementation-status"], "implemented");
   });
 
   it("loads portable protocol manifest and schemas", () => {

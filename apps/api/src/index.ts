@@ -30,6 +30,13 @@ import {
   discoverIdentityCapabilities,
   discoverMcpToolCapabilities,
 } from "@acpp/discovery";
+import {
+  assertSafeMcpServerEndpoint,
+  evaluateMcpGatewayPrecheck,
+  isToolOnConnectionAllowlist,
+  mcpResource,
+  sanitizeMcpToolResult,
+} from "@acpp/mcp";
 import { hashActionPayload } from "@acpp/policy";
 import {
   loadHostedOpenApi,
@@ -57,6 +64,83 @@ function publicGithubConnection(row: StoredGithubConnection) {
     credentialRef: row.credentialRef,
     createdAt: row.createdAt,
   };
+}
+
+function publicMcpConnection(row: {
+  connectionId: string;
+  workspaceId: string;
+  serverUrl: string;
+  credentialRef: string;
+  allowedTools: string[];
+  createdAt: string;
+}) {
+  return {
+    connectionId: row.connectionId,
+    workspaceId: row.workspaceId,
+    serverUrl: row.serverUrl,
+    credentialRef: row.credentialRef,
+    allowedTools: row.allowedTools,
+    createdAt: row.createdAt,
+  };
+}
+
+async function callRemoteMcpTool(input: {
+  serverUrl: string;
+  toolName: string;
+  args?: Record<string, unknown>;
+  bearerToken?: string;
+}): Promise<{ ok: true; result: Record<string, unknown> } | { ok: false; error: string }> {
+  const safety = assertSafeMcpServerEndpoint(input.serverUrl, {
+    allowLocalhost: process.env.NODE_ENV !== "production",
+  });
+  if (!safety.ok) {
+    return { ok: false, error: `unsafe_endpoint:${safety.reason}` };
+  }
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+    if (input.bearerToken) {
+      headers.Authorization = `Bearer ${input.bearerToken}`;
+    }
+    const res = await fetch(input.serverUrl.replace(/\/+$/, ""), {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: input.toolName,
+          arguments: input.args ?? {},
+        },
+      }),
+    });
+    if (!res.ok) {
+      return { ok: false, error: `mcp_http_${res.status}` };
+    }
+    const body = (await res.json()) as {
+      result?: unknown;
+      error?: { message?: string };
+    };
+    if (body.error) {
+      return {
+        ok: false,
+        error: body.error.message ?? "mcp_rpc_error",
+      };
+    }
+    const raw =
+      body.result && typeof body.result === "object"
+        ? (body.result as Record<string, unknown>)
+        : { result: body.result };
+    return { ok: true, result: sanitizeMcpToolResult(raw) };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
@@ -356,6 +440,156 @@ export function createApiServer(options: ApiServerOptions = {}) {
         connectionAllowedTools,
       });
       sendJson(res, 200, discovery);
+      return;
+    }
+
+    const workspaceMcpConnectMatch = path.match(
+      /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/connections\/mcp$/,
+    );
+    if (req.method === "POST" && workspaceMcpConnectMatch) {
+      const workspaceIdRaw = workspaceMcpConnectMatch[1];
+      if (!workspaceIdRaw || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw;
+      const body = (await readJsonBody(req)) as {
+        serverUrl?: string;
+        allowedTools?: string[];
+        accessToken?: string;
+      };
+      if (
+        !body.serverUrl ||
+        !Array.isArray(body.allowedTools) ||
+        body.allowedTools.length === 0
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      const safety = assertSafeMcpServerEndpoint(body.serverUrl, {
+        allowLocalhost: process.env.NODE_ENV !== "production",
+      });
+      if (!safety.ok) {
+        sendJson(res, 400, { error: "unsafe_endpoint", reason: safety.reason });
+        return;
+      }
+      if (!connections.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      try {
+        const connection = connections.connectMcp({
+          workspaceId,
+          serverUrl: body.serverUrl,
+          allowedTools: body.allowedTools,
+          accessToken: body.accessToken,
+        });
+        sendJson(res, 201, { connection: publicMcpConnection(connection) });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes("already exists") ? 409 : 400;
+        sendJson(res, status, { error: "connect_failed", message });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/mcp/tools/invoke") {
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        connectionId?: string;
+        subject?: string;
+        toolName?: string;
+        arguments?: Record<string, unknown>;
+        approvalId?: string;
+        at?: string;
+        payloadHash?: string;
+        signalId?: string;
+        recordReceipt?: boolean;
+      };
+      if (
+        !body.workspaceId ||
+        !body.connectionId ||
+        !body.subject ||
+        !body.toolName ||
+        !isWorkspaceId(body.workspaceId) ||
+        !isActorAddress(body.subject)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      const connection = connections.getMcpConnection(
+        body.connectionId,
+        body.workspaceId,
+      );
+      if (!connection) {
+        sendJson(res, 404, { error: "connection_not_found" });
+        return;
+      }
+      const resource = mcpResource(body.connectionId, body.toolName);
+      const payloadHash =
+        body.payloadHash ??
+        hashActionPayload({
+          toolName: body.toolName,
+          arguments: body.arguments ?? {},
+        });
+      try {
+        const gate = grants.gateProtectedAction(
+          {
+            workspaceId: body.workspaceId,
+            subject: body.subject,
+            resource,
+            action: "mcp.tools.call",
+            at: body.at,
+          },
+          { payloadHash },
+          body.approvalId,
+        );
+        const precheck = evaluateMcpGatewayPrecheck({
+          authenticated: true,
+          connectionFound: true,
+          authorized: gate.allowed,
+          toolAllowed: isToolOnConnectionAllowlist(
+            connection.allowedTools,
+            body.toolName,
+          ),
+          argumentsValid: true,
+          withinRateLimit: true,
+          approvalSatisfied: gate.allowed,
+        });
+        if (!gate.allowed || !precheck.proceedToExecution) {
+          sendJson(res, 403, {
+            gate,
+            precheck,
+            error: precheck.reason || "policy_denied",
+          });
+          return;
+        }
+        const token = connections.resolveCredential(connection.credentialRef);
+        const execution = await callRemoteMcpTool({
+          serverUrl: connection.serverUrl,
+          toolName: body.toolName,
+          args: body.arguments,
+          bearerToken: token,
+        });
+        if (!execution.ok) {
+          sendJson(res, 502, {
+            gate,
+            error: execution.error,
+            execution: { ok: false, reason: execution.error },
+          });
+          return;
+        }
+        sendJson(res, 200, {
+          gate,
+          result: execution.result,
+          execution: { ok: true },
+        });
+      } catch (err) {
+        sendJson(res, 403, {
+          error: "tenant_boundary",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       return;
     }
 

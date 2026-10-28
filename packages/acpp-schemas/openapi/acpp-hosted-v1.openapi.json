@@ -584,8 +584,8 @@
       "post": {
         "tags": ["connections", "mcp"],
         "operationId": "connectMcpServer",
-        "summary": "Register workspace MCP server connection (sketch)",
-        "x-acpp-implementation-status": "sketch",
+        "summary": "Register workspace MCP server connection (P-050)",
+        "x-acpp-implementation-status": "implemented",
         "parameters": [{ "$ref": "#/components/parameters/workspaceId" }],
         "requestBody": {
           "required": true,
@@ -593,21 +593,21 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["serverUrl", "allowedTools", "credentialRef"],
+                "required": ["serverUrl", "allowedTools"],
                 "properties": {
                   "serverUrl": { "type": "string", "format": "uri" },
                   "allowedTools": {
                     "type": "array",
                     "items": { "type": "string" }
                   },
-                  "credentialRef": { "type": "string" }
+                  "accessToken": { "type": "string" }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Connection registered (future)" },
+          "201": { "description": "Connection registered" },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "409": { "$ref": "#/components/responses/Conflict" }
@@ -639,8 +639,8 @@
       "post": {
         "tags": ["mcp"],
         "operationId": "invokeMcpTool",
-        "summary": "Policy-gated MCP tool invocation (sketch)",
-        "x-acpp-implementation-status": "sketch",
+        "summary": "Policy-gated MCP tool invocation (P-050 / Coppergate bridge)",
+        "x-acpp-implementation-status": "implemented",
         "requestBody": {
           "required": true,
           "content": {

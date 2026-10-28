@@ -71,7 +71,9 @@ export {
 export {
   ConnectionStore,
   type ConnectGithubInput,
+  type ConnectMcpInput,
   type StoredGithubConnection,
+  type StoredMcpConnection,
 } from "./connection-store.js";
 
 export {

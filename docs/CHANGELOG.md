@@ -6,6 +6,7 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **P-050** — Hardened MCP adapter: workspace `POST /v1/workspaces/{id}/connections/mcp`, policy-gated `POST /v1/mcp/tools/invoke` (SSRF + allowlist + sanitize), Coppergate bridge via `ACPP_GATEWAY_URL`. Not an MCP marketplace.
 - **Marketing site** — Premium ACPP landing page on `@acpp/web` at `/` (protocol principles, seven-layer status, real `@acpp/sdk` sample, wedge demonstration, integration honesty labels). Dashboard overview moved to `/dashboard`; receipt inspector remains at `/receipts`.
 - **A-020** — Reference SDK (`@acpp/sdk`): explicit sign/verify/signal helpers, hosted client for evaluate → approval → execute (no auto-approve convenience), execution proof guardrails, and [`docs/protocol/sdk.md`](./protocol/sdk.md) (PRODUCT §17.2).
 - **P-040** — Authorized capability discovery: `@acpp/discovery` (identity resolution + grant-derived capabilities, MCP permitted-tool discovery), `GET /v1/identities/{address}/capabilities`, live `GET /v1/mcp/capabilities`, and [`docs/protocol/discovery.md`](./protocol/discovery.md). Discovery ≠ consent (PRODUCT §5.2 / §10.4).

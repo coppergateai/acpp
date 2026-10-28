@@ -12,11 +12,31 @@ export type StoredGithubConnection = {
   createdAt: string;
 };
 
+export type StoredMcpConnection = {
+  connectionId: string;
+  workspaceId: WorkspaceId;
+  serverUrl: string;
+  credentialRef: string;
+  allowedTools: string[];
+  provider: "mcp";
+  createdAt: string;
+};
+
 export type ConnectGithubInput = {
   workspaceId: WorkspaceId;
   installationId: string;
   /** Token or installation access token — stored server-side only at connect time. */
   accessToken: string;
+  connectionId?: string;
+  createdAt?: string;
+};
+
+export type ConnectMcpInput = {
+  workspaceId: WorkspaceId;
+  serverUrl: string;
+  allowedTools: string[];
+  /** Optional bearer — stored server-side only. */
+  accessToken?: string;
   connectionId?: string;
   createdAt?: string;
 };
@@ -38,7 +58,9 @@ function generateCredentialRef(): string {
 export class ConnectionStore {
   readonly workspace: WorkspaceStore;
   readonly #connections = new Map<string, StoredGithubConnection>();
+  readonly #mcpConnections = new Map<string, StoredMcpConnection>();
   readonly #byWorkspaceGithub = new Map<WorkspaceId, string>();
+  readonly #byWorkspaceMcp = new Map<WorkspaceId, string>();
   /** Server-side only — never serialized to agents or public API bodies. */
   readonly #credentialVault = new Map<string, string>();
 
@@ -106,6 +128,62 @@ export class ConnectionStore {
       return [];
     }
     const row = this.#connections.get(id);
+    return row ? [row] : [];
+  }
+
+  connectMcp(input: ConnectMcpInput): StoredMcpConnection {
+    if (!isWorkspaceId(input.workspaceId)) {
+      throw new Error(`Invalid workspace id: ${input.workspaceId}`);
+    }
+    if (!this.workspace.getWorkspace(input.workspaceId)) {
+      throw new Error(`Unknown workspace: ${input.workspaceId}`);
+    }
+    const serverUrl = input.serverUrl.trim();
+    if (!serverUrl) throw new Error("serverUrl is required");
+    const allowedTools = input.allowedTools
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (allowedTools.length === 0) {
+      throw new Error("allowedTools must be non-empty");
+    }
+    const existingId = this.#byWorkspaceMcp.get(input.workspaceId);
+    if (existingId) {
+      throw new Error(
+        "MCP connection already exists for workspace; replace via delete + connect",
+      );
+    }
+    const credentialRef = generateCredentialRef();
+    const connectionId = input.connectionId ?? generateConnectionId();
+    const record: StoredMcpConnection = {
+      connectionId,
+      workspaceId: input.workspaceId,
+      serverUrl,
+      credentialRef,
+      allowedTools,
+      provider: "mcp",
+      createdAt: input.createdAt ?? new Date().toISOString(),
+    };
+    this.#mcpConnections.set(connectionId, record);
+    this.#byWorkspaceMcp.set(input.workspaceId, connectionId);
+    if (input.accessToken?.trim()) {
+      this.#credentialVault.set(credentialRef, input.accessToken.trim());
+    }
+    return record;
+  }
+
+  getMcpConnection(
+    connectionId: string,
+    workspaceId: WorkspaceId,
+  ): StoredMcpConnection | undefined {
+    const row = this.#mcpConnections.get(connectionId);
+    if (!row || row.workspaceId !== workspaceId) return undefined;
+    return row;
+  }
+
+  listMcpConnections(workspaceId: WorkspaceId): StoredMcpConnection[] {
+    const id = this.#byWorkspaceMcp.get(workspaceId);
+    if (!id) return [];
+    const row = this.#mcpConnections.get(id);
     return row ? [row] : [];
   }
 
