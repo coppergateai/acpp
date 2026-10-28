@@ -22,3 +22,25 @@ export const LOGICAL_ENTITIES = [
 ] as const;
 
 export type LogicalEntity = (typeof LOGICAL_ENTITIES)[number];
+
+export {
+  assertOwnershipNotAuthorization,
+  createWorkspaceId,
+  isWorkspaceId,
+  ownershipImpliesAuthorization,
+  PRODUCT_ACTOR_TYPES,
+  type ActorRecord,
+  type ActorStatus,
+  type OwnershipKind,
+  type OwnershipRelationship,
+  type ProductActorType,
+  type Workspace,
+  type WorkspaceId,
+} from "./workspace-model.js";
+
+export {
+  WorkspaceStore,
+  type AddOwnershipInput,
+  type CreateWorkspaceInput,
+  type RegisterActorInput,
+} from "./workspace-store.js";

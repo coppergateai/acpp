@@ -172,7 +172,14 @@ importers:
         version: 5.9.3
 
   packages/db:
+    dependencies:
+      '@acpp/core':
+        specifier: workspace:*
+        version: link:../acpp-core
     devDependencies:
+      '@acpp/policy':
+        specifier: workspace:*
+        version: link:../acpp-policy
       '@acpp/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
