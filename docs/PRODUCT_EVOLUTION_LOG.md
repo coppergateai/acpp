@@ -36,4 +36,4 @@ Phase 1 spend order (see `docs/OPEN_PROGRAM.md`, aligned to PRODUCT.md §13 / §
 - `P-020` real GitHub connector → `P-021` secrets + outcome states
 - `P-030` receipt inspector → `P-031` dashboard IA + onboarding
 - `A-010` Developer API + quickstart → `A-011` OpenAPI/schemas → `A-012` local deny+allow demos
-- `P-022` MCP path docs · `AG-001` CI check name honesty
+- `AG-001` CI check name honesty · `AG-002` lockfile sync
