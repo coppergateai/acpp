@@ -50,4 +50,4 @@ Breaking changes to either surface require a new protocol folder or API major ve
 
 ## MCP routes (sketch)
 
-P-022 documents MCP gateway HTTP paths in the same OpenAPI file with `x-acpp-implementation-status: sketch`. They are listed in `@acpp/schemas` as `SKETCHED_MCP_HOSTED_PATHS` and are **not** part of `DOCUMENTED_HOSTED_PATHS` until P-050. See [`mcp-integration.md`](./mcp-integration.md).
+MCP connect and invoke routes are part of `DOCUMENTED_HOSTED_PATHS` after P-050 (`SKETCHED_MCP_HOSTED_PATHS` is empty). See [`mcp-integration.md`](./mcp-integration.md).
