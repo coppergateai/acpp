@@ -26,6 +26,9 @@ importers:
       '@acpp/identity':
         specifier: workspace:*
         version: link:../../packages/acpp-identity
+      '@acpp/policy':
+        specifier: workspace:*
+        version: link:../../packages/acpp-policy
       '@acpp/signals':
         specifier: workspace:*
         version: link:../../packages/acpp-signals
@@ -210,13 +213,13 @@ importers:
       '@acpp/identity':
         specifier: workspace:*
         version: link:../acpp-identity
+      '@acpp/policy':
+        specifier: workspace:*
+        version: link:../acpp-policy
       '@acpp/signals':
         specifier: workspace:*
         version: link:../acpp-signals
     devDependencies:
-      '@acpp/policy':
-        specifier: workspace:*
-        version: link:../acpp-policy
       '@acpp/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config

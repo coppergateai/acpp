@@ -59,3 +59,10 @@ export {
   type SignalRecord,
   type SubmitSignalResult,
 } from "./signal-store.js";
+
+export {
+  GrantStore,
+  type CreateGrantInput,
+  type RecordApprovalInput,
+  type StoredGrant,
+} from "./grant-store.js";

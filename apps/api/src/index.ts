@@ -3,13 +3,17 @@ import {
   ACPP_PROTOCOL_VERSION,
   isActorAddress,
   isSignalReferenceId,
+  type ActorAddress,
   type SignalEnvelope,
 } from "@acpp/core";
-import { IdentityRegistry, SignalStore, isWorkspaceId } from "@acpp/db";
+import type { WorkspaceId } from "@acpp/db";
+import { GrantStore, IdentityRegistry, SignalStore, isWorkspaceId } from "@acpp/db";
+import { hashActionPayload } from "@acpp/policy";
 
 export type ApiServerOptions = {
   registry?: IdentityRegistry;
   signals?: SignalStore;
+  grants?: GrantStore;
 };
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
@@ -29,10 +33,11 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 }
 
 /**
- * HTTP API — health, identity registry (P-010), signal gateway (S-010). Broader Developer API: A-010.
+ * HTTP API — health, identity (P-010), signals (S-010), grants/authz (SEC-010). Broader Developer API: A-010.
  */
 export function createApiServer(options: ApiServerOptions = {}) {
   const registry = options.registry ?? new IdentityRegistry();
+  const grants = options.grants ?? new GrantStore(registry.workspace);
   const signals = options.signals ?? new SignalStore(registry);
 
   return createServer(async (req, res) => {
@@ -214,6 +219,192 @@ export function createApiServer(options: ApiServerOptions = {}) {
         signal: result.signal,
         delivery: result.delivery,
       });
+      return;
+    }
+
+    if (req.method === "GET" && path === "/v1/grants") {
+      const workspaceId = url.searchParams.get("workspaceId") ?? undefined;
+      const subject = url.searchParams.get("subject") ?? undefined;
+      if (workspaceId && !isWorkspaceId(workspaceId)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      if (subject && !isActorAddress(subject)) {
+        sendJson(res, 400, { error: "invalid_subject" });
+        return;
+      }
+      const rows = grants.listGrants({
+        workspaceId: workspaceId as WorkspaceId | undefined,
+        subject: subject as ActorAddress | undefined,
+      });
+      sendJson(res, 200, { grants: rows });
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/grants") {
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        subject?: string;
+        resource?: string;
+        action?: string;
+        expiresAt?: string;
+        requiresApproval?: boolean;
+        grantId?: string;
+      };
+      if (
+        !body.workspaceId ||
+        !body.subject ||
+        !body.resource ||
+        !body.action ||
+        !isWorkspaceId(body.workspaceId) ||
+        !isActorAddress(body.subject)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      if (!grants.workspace.getWorkspace(body.workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      try {
+        const grant = grants.createGrant({
+          grantId: body.grantId,
+          workspaceId: body.workspaceId,
+          subject: body.subject,
+          resource: body.resource,
+          action: body.action,
+          expiresAt: body.expiresAt,
+          requiresApproval: body.requiresApproval,
+        });
+        sendJson(res, 201, { grant });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "grant_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    const revokeMatch = path.match(/^\/v1\/grants\/([A-Za-z0-9_-]+)\/revoke$/);
+    if (req.method === "POST" && revokeMatch) {
+      const grantId = revokeMatch[1]!;
+      try {
+        const grant = grants.revokeGrant(grantId);
+        sendJson(res, 200, { grant });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.startsWith("Unknown grant") ? 404 : 409;
+        sendJson(res, status, { error: "revoke_failed", message });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/authorization/evaluate") {
+      const body = (await readJsonBody(req)) as {
+        subject?: string;
+        resource?: string;
+        action?: string;
+        at?: string;
+      };
+      if (
+        !body.subject ||
+        !body.resource ||
+        !body.action ||
+        !isActorAddress(body.subject)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      const decision = grants.evaluateAuthorization({
+        subject: body.subject,
+        resource: body.resource,
+        action: body.action,
+        at: body.at,
+      });
+      sendJson(res, 200, { decision });
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/approvals") {
+      const body = (await readJsonBody(req)) as {
+        grantId?: string;
+        subject?: string;
+        resource?: string;
+        action?: string;
+        payloadHash?: string;
+        payload?: unknown;
+        approved?: boolean;
+      };
+      const payloadHash =
+        body.payloadHash ??
+        (body.payload !== undefined ? hashActionPayload(body.payload) : undefined);
+      if (
+        !body.grantId ||
+        !body.subject ||
+        !body.resource ||
+        !body.action ||
+        payloadHash === undefined ||
+        body.approved === undefined ||
+        !isActorAddress(body.subject)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      try {
+        const approval = grants.recordApproval({
+          grantId: body.grantId,
+          subject: body.subject,
+          resource: body.resource,
+          action: body.action,
+          payloadHash,
+          approved: body.approved,
+        });
+        sendJson(res, 201, { approval });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "approval_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/authorization/execute") {
+      const body = (await readJsonBody(req)) as {
+        subject?: string;
+        resource?: string;
+        action?: string;
+        at?: string;
+        payloadHash?: string;
+        payload?: unknown;
+        approvalId?: string;
+      };
+      const payloadHash =
+        body.payloadHash ??
+        (body.payload !== undefined ? hashActionPayload(body.payload) : undefined);
+      if (
+        !body.subject ||
+        !body.resource ||
+        !body.action ||
+        payloadHash === undefined ||
+        !isActorAddress(body.subject)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      const gate = grants.gateProtectedAction(
+        {
+          subject: body.subject,
+          resource: body.resource,
+          action: body.action,
+          at: body.at,
+        },
+        { payloadHash },
+        body.approvalId,
+      );
+      const status = gate.allowed ? 200 : 403;
+      sendJson(res, status, { gate });
       return;
     }
 
