@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acpp.ai/schemas/protocol/v0.1.0/signal-envelope",
+  "title": "SignalEnvelope",
+  "description": "Transport-independent ACPP signal envelope. Canonical signing rules are normative in docs/protocol/signal.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocolVersion",
+    "signalId",
+    "type",
+    "sender",
+    "audience",
+    "createdAt",
+    "contentType",
+    "payload"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "type": "string",
+      "description": "Protocol version for the envelope (e.g. 0.1.0)."
+    },
+    "signalId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8,128}$"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["event", "request", "offer", "response", "approval", "revocation"]
+    },
+    "sender": {
+      "$ref": "#/$defs/actorAddress"
+    },
+    "audience": {
+      "oneOf": [
+        { "$ref": "#/$defs/actorAddress" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/actorAddress" }
+        }
+      ]
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "correlationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8,128}$"
+    },
+    "causationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{8,128}$"
+    },
+    "contentType": { "type": "string", "minLength": 1 },
+    "payload": {},
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alg", "keyId", "signature"],
+      "properties": {
+        "alg": { "const": "Ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "signature": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "actorAddress": {
+      "type": "string",
+      "pattern": "^acpp:(human|agent|service|organization|application):[A-Za-z0-9_-]+$"
+    }
+  }
+}
