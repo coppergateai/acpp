@@ -549,9 +549,11 @@ describe("@acpp/api", () => {
         });
         assert.equal(readOk.status, 200);
         const readBody = (await readOk.json()) as {
-          execution: { ok: boolean; externalRef: string };
+          execution: { state: string; externalRef: string };
+          outcome: { ok: boolean; state: string };
         };
-        assert.equal(readBody.execution.ok, true);
+        assert.equal(readBody.execution.state, "succeeded");
+        assert.equal(readBody.outcome.ok, true);
         assert.equal(readBody.execution.externalRef, `github:repo:${repo}`);
 
         const commentOk = await fetch(`${base}/v1/github/actions/execute`, {
@@ -568,9 +570,101 @@ describe("@acpp/api", () => {
         });
         assert.equal(commentOk.status, 200);
         const commentBody = (await commentOk.json()) as {
-          execution: { ok: boolean };
+          execution: { state: string };
         };
-        assert.equal(commentBody.execution.ok, true);
+        assert.equal(commentBody.execution.state, "succeeded");
+      },
+      { githubHttp: { fetch: mockFetch } },
+    );
+  });
+
+  it("records outcome_unknown and blocks blind retry (P-021)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "p021",
+      slug: "p021",
+      displayName: "P021",
+    });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner",
+      displayName: "Owner",
+    });
+    const agent = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "exec",
+      displayName: "Exec agent",
+    });
+    const repo = "coppergateai/acpp";
+    const resource = `github:repo:${repo}`;
+
+    const mockFetch: typeof fetch = async () => {
+      throw new Error("network_reset");
+    };
+
+    await withServer(
+      registry,
+      async (port) => {
+        const base = `http://127.0.0.1:${port}`;
+        const connect = await fetch(
+          `${base}/v1/workspaces/${ws.workspaceId}/connections/github`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              installationId: "1",
+              accessToken: "ghs_test",
+            }),
+          },
+        );
+        const connected = (await connect.json()) as {
+          connection: { connectionId: string };
+        };
+        await fetch(`${base}/v1/grants`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            grantedBy: owner.address,
+            subject: agent.address,
+            resource,
+            action: "issues.comment",
+          }),
+        });
+
+        const body = {
+          workspaceId: ws.workspaceId,
+          connectionId: connected.connection.connectionId,
+          subject: agent.address,
+          repo,
+          action: "issues.comment",
+          payload: { issueNumber: 1, body: "maybe posted" },
+          idempotencyKey: "idem-unknown-1",
+        };
+
+        const first = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        assert.equal(first.status, 504);
+        const firstJson = (await first.json()) as {
+          execution: { state: string };
+          outcome: { state: string };
+        };
+        assert.equal(firstJson.execution.state, "outcome_unknown");
+        assert.equal(firstJson.outcome.state, "outcome_unknown");
+
+        const retry = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        assert.equal(retry.status, 409);
+        const retryJson = (await retry.json()) as { error: string };
+        assert.equal(retryJson.error, "no_blind_retry");
       },
       { githubHttp: { fetch: mockFetch } },
     );
