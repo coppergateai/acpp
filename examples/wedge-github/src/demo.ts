@@ -1,13 +1,24 @@
 /**
  * Wedge sketch: identity → grant → GitHub action → receipt → revoke → deny.
- * Full HTTP/GitHub wiring lands with P-020 / A-010.
+ * Uses injectable HTTP for offline tests; hosted flow: `docs/protocol/connections.md`.
  */
 import { createActorAddress } from "@acpp/core";
-import { executeGithubAction, githubResource } from "@acpp/github";
+import {
+  executeGithubAction,
+  githubResource,
+  type GithubHttpClient,
+} from "@acpp/github";
 import { evaluateGrant, type PermissionGrant } from "@acpp/policy";
 import { buildReceipt } from "@acpp/receipts";
 
-export async function runWedgeSketch(): Promise<{
+export type WedgeSketchOptions = {
+  githubHttp?: GithubHttpClient;
+  connectionToken?: string;
+};
+
+export async function runWedgeSketch(
+  options: WedgeSketchOptions = {},
+): Promise<{
   beforeRevoke: boolean;
   afterRevoke: boolean;
 }> {
@@ -26,14 +37,33 @@ export async function runWedgeSketch(): Promise<{
   ];
 
   const allowed = evaluateGrant(grants, { subject: agent, resource, action });
+  const githubHttp =
+    options.githubHttp ??
+    ({
+      fetch: async (input, init) => {
+        const url = String(input);
+        if (url.includes("/issues/") && init?.method === "POST") {
+          return new Response(JSON.stringify({ id: 1, html_url: "https://example.test/1" }), {
+            status: 201,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ full_name: "coppergateai/acpp" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    } satisfies GithubHttpClient);
   const exec = await executeGithubAction(
     {
       subject: agent,
       connectionId: "conn_stub",
       repo: "coppergateai/acpp",
       action,
+      payload: { issueNumber: 1, body: "wedge" },
     },
     allowed.allow,
+    { token: options.connectionToken ?? "test-token", http: githubHttp },
   );
 
   buildReceipt({
