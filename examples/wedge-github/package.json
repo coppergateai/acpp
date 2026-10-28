@@ -10,12 +10,15 @@
     "test": "node --import tsx --test $(find src -name '*.test.ts')"
   },
   "dependencies": {
+    "@acpp/client": "workspace:*",
     "@acpp/core": "workspace:*",
     "@acpp/github": "workspace:*",
+    "@acpp/identity": "workspace:*",
     "@acpp/policy": "workspace:*",
     "@acpp/receipts": "workspace:*"
   },
   "devDependencies": {
+    "@acpp/api": "workspace:*",
     "@acpp/typescript-config": "workspace:*",
     "@types/node": "^22.15.21",
     "tsx": "^4.19.4",
