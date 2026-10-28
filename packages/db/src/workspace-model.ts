@@ -10,7 +10,7 @@ export type Workspace = {
   createdAt: string;
 };
 
-export type ActorStatus = "active" | "suspended";
+export type ActorStatus = "active" | "suspended" | "revoked";
 
 /**
  * Logical Actor entity (PRODUCT.md §14.4). Distinct from authorization grants.

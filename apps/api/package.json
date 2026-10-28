@@ -11,7 +11,9 @@
     "dev": "node --import tsx --watch src/serve.ts"
   },
   "dependencies": {
-    "@acpp/core": "workspace:*"
+    "@acpp/core": "workspace:*",
+    "@acpp/db": "workspace:*",
+    "@acpp/identity": "workspace:*"
   },
   "devDependencies": {
     "@acpp/typescript-config": "workspace:*",

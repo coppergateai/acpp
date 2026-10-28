@@ -103,6 +103,19 @@ export class WorkspaceStore {
     return this.#actors.get(address);
   }
 
+  setActorStatus(
+    address: ActorAddress,
+    status: ActorRecord["status"],
+  ): ActorRecord {
+    const record = this.#actors.get(address);
+    if (!record) {
+      throw new Error(`Unknown actor: ${address}`);
+    }
+    const updated: ActorRecord = { ...record, status };
+    this.#actors.set(address, updated);
+    return updated;
+  }
+
   listActorsInWorkspace(workspaceId: WorkspaceId): ActorRecord[] {
     return [...this.#actors.values()].filter(
       (a) => a.workspaceId === workspaceId,
