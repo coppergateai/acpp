@@ -65,4 +65,5 @@ export {
   type CreateGrantInput,
   type RecordApprovalInput,
   type StoredGrant,
+  type TenantAuthzRequest,
 } from "./grant-store.js";
