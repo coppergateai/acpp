@@ -7,12 +7,12 @@ ACPP complements [Model Context Protocol (MCP)](https://modelcontextprotocol.io/
 
 ## What ships in Phase 1
 
-| Layer | Phase 1 | Notes |
+| Layer | Status | Notes |
 | --- | --- | --- |
 | GitHub connector | **Implemented** | [`connections.md`](./connections.md) — reference gateway pattern |
-| MCP gateway HTTP | **Partial** | `GET /v1/mcp/capabilities` implemented (P-040); connect + invoke remain sketch |
-| MCP gateway logic | **`@acpp/mcp`** + **`@acpp/discovery`** | Pipeline, SSRF/allowlist helpers, permitted-tool discovery |
-| Universal MCP adapter | **Phase 2 (P-050)** | Hardened execution after GitHub wedge is proven |
+| MCP gateway HTTP | **Implemented (P-050)** | Connect, discovery, and invoke routes on `@acpp/api` |
+| MCP gateway logic | **`@acpp/mcp`** + **`@acpp/discovery`** | Pipeline, SSRF/allowlist helpers, JSON-RPC execution, result sanitization |
+| Universal MCP adapter | **Implemented (P-050)** | One MCP server per workspace; not a connector marketplace |
 
 ## Architecture sketch
 
@@ -39,9 +39,9 @@ ACPP complements [Model Context Protocol (MCP)](https://modelcontextprotocol.io/
 
 The agent identity is always separate from the connected account’s credentials (PRODUCT §10.5). Agents never receive raw connection secrets.
 
-## HTTP routes (sketch)
+## HTTP routes
 
-These paths are documented in `GET /v1/openapi.json`. **`GET /v1/mcp/capabilities`** is live (P-040). Connect and invoke remain sketch until P-050; GitHub remains the production connector.
+These paths are documented in `GET /v1/openapi.json`. GitHub remains the first production connector; MCP is the second governed path (P-050) without a public catalog.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -102,4 +102,4 @@ import {
 - Auto-approval of protected tools from LLM convenience helpers
 - Shipping every possible MCP connector in Phase 1
 
-Phase 2 **P-050** adds a hardened MCP adapter or second connector without sprawl.
+**P-050** ships the hardened MCP adapter: connect-once registration with SSRF checks, grant-gated `tools/call`, and sanitized results — same invariants as the GitHub wedge.
