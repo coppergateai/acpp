@@ -25,6 +25,7 @@
 | Replay | Signal id + validity window + consumed-state store |
 | Privilege escalation | No self-grant; no increasing delegation |
 | False trust | Identity ≠ authority messaging; receipts distinguish delivery vs execution |
+| Malicious MCP server (SSRF / confused deputy) | HTTPS + SSRF-safe URL validation at connect; tool allowlists; policy gate before invoke; sanitized results (`@acpp/mcp`) |
 
 ## Out of scope for MVP
 

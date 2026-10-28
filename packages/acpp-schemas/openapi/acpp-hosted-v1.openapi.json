@@ -13,7 +13,8 @@
     { "name": "authorization", "description": "Grants, evaluation, execution gates" },
     { "name": "receipts", "description": "Audit chain records" },
     { "name": "connections", "description": "Workspace connectors" },
-    { "name": "github", "description": "GitHub protected actions" }
+    { "name": "github", "description": "GitHub protected actions" },
+    { "name": "mcp", "description": "MCP integration (documented sketch — P-022)" }
   ],
   "paths": {
     "/health": {
@@ -546,6 +547,94 @@
         "responses": {
           "200": { "description": "Proof result" },
           "500": { "description": "Proof failed" }
+        }
+      }
+    },
+    "/v1/workspaces/{workspaceId}/connections/mcp": {
+      "post": {
+        "tags": ["connections", "mcp"],
+        "operationId": "connectMcpServer",
+        "summary": "Register workspace MCP server connection (sketch)",
+        "x-acpp-implementation-status": "sketch",
+        "parameters": [{ "$ref": "#/components/parameters/workspaceId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["serverUrl", "allowedTools", "credentialRef"],
+                "properties": {
+                  "serverUrl": { "type": "string", "format": "uri" },
+                  "allowedTools": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "credentialRef": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Connection registered (future)" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" }
+        }
+      }
+    },
+    "/v1/mcp/capabilities": {
+      "get": {
+        "tags": ["mcp"],
+        "operationId": "listPermittedMcpCapabilities",
+        "summary": "Authorized MCP tool discovery for calling actor (sketch)",
+        "x-acpp-implementation-status": "sketch",
+        "parameters": [
+          { "$ref": "#/components/parameters/workspaceIdQuery" },
+          {
+            "name": "subject",
+            "in": "query",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/ActorAddress" }
+          },
+          { "name": "connectionId", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Permitted tools only" },
+          "403": { "description": "Denied by policy" }
+        }
+      }
+    },
+    "/v1/mcp/tools/invoke": {
+      "post": {
+        "tags": ["mcp"],
+        "operationId": "invokeMcpTool",
+        "summary": "Policy-gated MCP tool invocation (sketch)",
+        "x-acpp-implementation-status": "sketch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["workspaceId", "connectionId", "subject", "toolName"],
+                "properties": {
+                  "workspaceId": { "type": "string" },
+                  "connectionId": { "type": "string" },
+                  "subject": { "$ref": "#/components/schemas/ActorAddress" },
+                  "toolName": { "type": "string" },
+                  "arguments": { "type": "object" },
+                  "approvalId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Sanitized tool result" },
+          "403": { "description": "Denied by policy" },
+          "502": { "description": "Upstream MCP error" }
         }
       }
     }

@@ -5,6 +5,7 @@ import {
   ACPP_HOSTED_API_VERSION,
   ACPP_PROTOCOL_SCHEMA_VERSION,
   DOCUMENTED_HOSTED_PATHS,
+  SKETCHED_MCP_HOSTED_PATHS,
   loadHostedOpenApi,
   loadProtocolManifest,
   loadProtocolSchema,
@@ -25,6 +26,22 @@ describe("@acpp/schemas", () => {
         path in doc.paths,
         `missing OpenAPI path ${path}`,
       );
+    }
+  });
+
+  it("documents MCP gateway sketch paths separately from implemented routes", () => {
+    const doc = loadHostedOpenApi();
+    for (const path of SKETCHED_MCP_HOSTED_PATHS) {
+      assert.ok(path in doc.paths, `missing MCP sketch path ${path}`);
+      assert.equal(
+        path in DOCUMENTED_HOSTED_PATHS,
+        false,
+        `${path} must stay sketch-only until P-050`,
+      );
+      const pathItem = doc.paths[path] as Record<string, Record<string, unknown>>;
+      for (const method of Object.values(pathItem)) {
+        assert.equal(method["x-acpp-implementation-status"], "sketch");
+      }
     }
   });
 

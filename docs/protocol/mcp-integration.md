@@ -1,0 +1,105 @@
+# MCP integration path (P-022)
+
+**Open ID:** P-022 — PRODUCT §10 / §13.2 Connectivity  
+**Status:** Documented gateway sketch + security boundary (Phase 1). Not an MCP marketplace.
+
+ACPP complements [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) tooling. MCP describes how tools are invoked; ACPP supplies **identity**, **authorization**, **credential isolation**, and **receipts** around those invocations. ACPP is not a replacement for MCP and does not host a public connector catalog.
+
+## What ships in Phase 1
+
+| Layer | Phase 1 | Notes |
+| --- | --- | --- |
+| GitHub connector | **Implemented** | [`connections.md`](./connections.md) — reference gateway pattern |
+| MCP gateway HTTP | **Sketched in OpenAPI** | Routes marked `x-acpp-implementation-status: sketch` |
+| MCP gateway logic | **`@acpp/mcp`** | Pipeline + SSRF/allowlist helpers with tests |
+| Universal MCP adapter | **Phase 2 (P-050)** | Hardened execution after GitHub wedge is proven |
+
+## Architecture sketch
+
+```text
+ Agent (acpp:agent:…)
+        │
+        │ signed identity + tool invoke request
+        ▼
+┌───────────────────────────────────────┐
+│  ACPP hosted gateway (Layer 6 Action) │
+│  1 authenticate_actor                 │
+│  2 resolve_connection                 │
+│  3 check_authorization  ◄── GrantStore│
+│  4 validate_tool_and_args             │
+│  5 rate limits + approval             │
+│  6 execute_via_connection ───────┐    │
+│  7 record_request_and_outcome    │    │
+│  8 return_sanitized_result ◄─────┘    │
+└───────────────────────────────────────┘
+        │ credential ref resolved server-side only
+        ▼
+   Remote MCP server (HTTPS, allowlisted tools)
+```
+
+The agent identity is always separate from the connected account’s credentials (PRODUCT §10.5). Agents never receive raw connection secrets.
+
+## HTTP routes (sketch)
+
+These paths are documented in `GET /v1/openapi.json` for SDK and integration planning. The hosted service returns **501** or omits routing until P-050; GitHub remains the production connector.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/v1/workspaces/{workspaceId}/connections/mcp` | Register one MCP server per workspace pattern (URL, allowlisted tools, credential ref) |
+| `GET` | `/v1/mcp/capabilities` | Return **permitted** tools for the authenticated actor (PRODUCT §10.4 — discovery ≠ consent) |
+| `POST` | `/v1/mcp/tools/invoke` | Policy-gated MCP `tools/call` after grants + optional approval |
+
+### Invoke body (sketch)
+
+```json
+{
+  "workspaceId": "ws_…",
+  "connectionId": "conn_…",
+  "subject": "acpp:agent:…",
+  "toolName": "search_docs",
+  "arguments": { "query": "incident runbook" },
+  "approvalId": "optional when grant requires approval"
+}
+```
+
+Resource id for grants: `mcp:connection:{connectionId}:tool:{toolName}` (see `@acpp/mcp` `mcpResource()`).
+
+Flow mirrors GitHub: `gateProtectedAction` → resolve credential by ref → outbound MCP call → receipt with execution outcome.
+
+## Security boundary (PRODUCT §10.6)
+
+| Control | Behavior |
+| --- | --- |
+| Tenant isolation | Workspace-scoped connections and grants (same as GitHub wedge) |
+| Credential isolation | `credentialRef` only in operator APIs; resolved at step 6 |
+| Least privilege | Per-connection tool allowlist + per-agent grants |
+| SSRF | Reject private IPs, link-local, and metadata hosts at registration (`assertSafeMcpServerEndpoint`) |
+| Transport | HTTPS required for remote servers; localhost only in explicit dev mode |
+| Confused deputy | Do not trust a server because it is registered — validate URL, scope, and tool args |
+| Discovery | `filterPermittedMcpTools` — never expose hidden tools via metadata |
+| Result hygiene | Strip credential-like fields before returning to agents (`sanitizeMcpToolResult`) |
+| Audit | Receipt links subject, decision, tool, and outcome (extend P-030 chain) |
+
+See also [`threat-model.md`](./threat-model.md).
+
+## Reference library
+
+```typescript
+import {
+  MCP_GATEWAY_PIPELINE,
+  evaluateMcpGatewayPrecheck,
+  assertSafeMcpServerEndpoint,
+  mcpResource,
+} from "@acpp/mcp";
+```
+
+`evaluateMcpGatewayPrecheck` encodes steps 1–5 as deterministic booleans for tests and future API handlers.
+
+## Explicit non-goals
+
+- MCP **marketplace** or public connector store (PRODUCT §13.3)
+- OAuth or MCP protocol replacement
+- Auto-approval of protected tools from LLM convenience helpers
+- Shipping every possible MCP connector in Phase 1
+
+Phase 2 **P-050** adds a hardened MCP adapter or second connector without sprawl.

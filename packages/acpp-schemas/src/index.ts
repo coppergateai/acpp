@@ -86,3 +86,13 @@ export const DOCUMENTED_HOSTED_PATHS = [
   "/v1/github/actions/execute",
   "/v1/demo/wedge-revoke-proof",
 ] as const;
+
+/**
+ * MCP integration routes documented as sketches (P-022).
+ * Not required on the live router until a hardened adapter ships (P-050).
+ */
+export const SKETCHED_MCP_HOSTED_PATHS = [
+  "/v1/workspaces/{workspaceId}/connections/mcp",
+  "/v1/mcp/capabilities",
+  "/v1/mcp/tools/invoke",
+] as const;
