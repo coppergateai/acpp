@@ -23,6 +23,9 @@ importers:
       '@acpp/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@acpp/github':
+        specifier: workspace:*
+        version: link:../../packages/acpp-github
       '@acpp/identity':
         specifier: workspace:*
         version: link:../../packages/acpp-identity

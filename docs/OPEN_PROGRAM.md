@@ -29,7 +29,7 @@ Maps to PRODUCT.md **§13 MVP**, **§22 Phase 1**, and **§23 acceptance**. Prov
 | Done | SEC-010 | PermissionGrant + expire + revoke + approval-bound action | PRODUCT §9 / §13.2 Authorization — wire `@acpp/policy` into API |
 | Done | SEC-011 | Deny-by-default + scopes + tenant isolation | PRODUCT §15.2 / §14.2 — no grant → no access; server-side tenant boundaries + tests |
 | Open | SEC-012 | Approval inbox + action-binding integrity | PRODUCT §9.4 / §11.6 — Automatic / Approval required / Denied; reject stale or materially changed requests |
-| Open | P-020 | GitHub connection once + per-agent scope + one protected op | PRODUCT §10 / §12 Use Case D — real HTTP; credential isolation; issues.comment or repos.metadata.read |
+| Done | P-020 | GitHub connection once + per-agent scope + one protected op | PRODUCT §10 / §12 Use Case D — real HTTP; credential isolation; issues.comment or repos.metadata.read |
 | Open | P-021 | Secret refs + execution outcome states | PRODUCT §10.3 / §14.5 — ConnectionCredentialReference; Not started→…→Outcome unknown; no blind retry |
 | Open | P-030 | Receipt chain + dashboard inspector + revoke-then-deny proof | PRODUCT §13.1 #8–9 — signal→decision→outcome; UI proves revoke then deny |
 | Open | P-031 | Dashboard IA + onboarding wedge flow | PRODUCT §11.1–11.2 — Overview, Identities, Connections, Signals, Permissions, Receipts, Developers; TTFV steps 1–8 |

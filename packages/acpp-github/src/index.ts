@@ -1,4 +1,5 @@
 import type { ActorAddress } from "@acpp/core";
+import { performGithubHttpAction, type GithubHttpClient } from "./http.js";
 
 /** First MVP connector: one GitHub connection serving multiple agents with different grants. */
 export type GithubConnection = {
@@ -26,16 +27,29 @@ export function githubResource(repo: string): string {
   return `github:repo:${repo}`;
 }
 
+export type ExecuteGithubDeps = {
+  /** Resolved server-side after authorization — never supplied by the calling agent. */
+  token?: string;
+  http?: GithubHttpClient;
+};
+
 /**
- * Stub executor — real GitHub HTTP lands in P-020.
+ * Execute a protected GitHub operation when policy allows.
  * Credentials must not be exposed to unauthorized agents.
  */
 export async function executeGithubAction(
-  _req: GithubActionRequest,
+  req: GithubActionRequest,
   authorized: boolean,
+  deps: ExecuteGithubDeps = {},
 ): Promise<{ ok: boolean; externalRef?: string; error?: string }> {
   if (!authorized) {
     return { ok: false, error: "unauthorized" };
   }
-  return { ok: true, externalRef: "stub:pending_p020" };
+  if (!deps.token) {
+    return { ok: false, error: "connection_credential_unavailable" };
+  }
+  const http = deps.http ?? { fetch };
+  return performGithubHttpAction(req, deps.token, http);
 }
+
+export { performGithubHttpAction, parseGithubRepo, type GithubHttpClient } from "./http.js";

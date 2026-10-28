@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@acpp/core": "workspace:*",
+    "@acpp/github": "workspace:*",
     "@acpp/db": "workspace:*",
     "@acpp/identity": "workspace:*",
     "@acpp/policy": "workspace:*",
