@@ -65,6 +65,7 @@ export const DOCUMENTED_HOSTED_PATHS = [
   "/v1/openapi.json",
   "/v1/protocol/schemas",
   "/v1/protocol/schemas/{schemaId}",
+  "/v1/workspaces",
   "/v1/workspaces/{workspaceId}/identities",
   "/v1/identities/{address}",
   "/v1/identities/{address}/keys/rotate",
