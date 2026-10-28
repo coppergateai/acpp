@@ -1,0 +1,176 @@
+import { randomBytes } from "node:crypto";
+import type { ActorAddress } from "@acpp/core";
+import {
+  evaluateGrant,
+  gateProtectedAction,
+  type ActionBinding,
+  type ApprovalRecord,
+  type AuthzRequest,
+  type ExecutionGate,
+  type PermissionGrant,
+} from "@acpp/policy";
+import { isWorkspaceId, type WorkspaceId } from "./workspace-model.js";
+import { WorkspaceStore } from "./workspace-store.js";
+
+export type StoredGrant = PermissionGrant & {
+  workspaceId: WorkspaceId;
+  createdAt: string;
+};
+
+export type CreateGrantInput = {
+  grantId?: string;
+  workspaceId: WorkspaceId;
+  subject: ActorAddress;
+  resource: string;
+  action: string;
+  expiresAt?: string;
+  requiresApproval?: boolean;
+  createdAt?: string;
+};
+
+export type RecordApprovalInput = {
+  approvalId?: string;
+  grantId: string;
+  subject: ActorAddress;
+  resource: string;
+  action: string;
+  payloadHash: string;
+  approved: boolean;
+  decidedAt?: string;
+};
+
+function generateGrantId(): string {
+  const suffix = randomBytes(8).toString("base64url").replace(/[^A-Za-z0-9_-]/g, "");
+  return `gr_${suffix}`.slice(0, 24);
+}
+
+function generateApprovalId(): string {
+  const suffix = randomBytes(8).toString("base64url").replace(/[^A-Za-z0-9_-]/g, "");
+  return `appr_${suffix}`.slice(0, 28);
+}
+
+/**
+ * In-memory PermissionGrant store scoped to workspaces (PRODUCT §13.2 / §14.4).
+ */
+export class GrantStore {
+  readonly workspace: WorkspaceStore;
+  readonly #grants = new Map<string, StoredGrant>();
+  readonly #approvals = new Map<string, ApprovalRecord>();
+
+  constructor(workspace?: WorkspaceStore) {
+    this.workspace = workspace ?? new WorkspaceStore();
+  }
+
+  createGrant(input: CreateGrantInput): StoredGrant {
+    if (!isWorkspaceId(input.workspaceId)) {
+      throw new Error(`Invalid workspace id: ${input.workspaceId}`);
+    }
+    this.workspace.assertActorInWorkspace(input.workspaceId, input.subject);
+    const grantId = input.grantId ?? generateGrantId();
+    if (this.#grants.has(grantId)) {
+      throw new Error(`Grant already exists: ${grantId}`);
+    }
+    const grant: StoredGrant = {
+      grantId,
+      workspaceId: input.workspaceId,
+      subject: input.subject,
+      resource: input.resource,
+      action: input.action,
+      expiresAt: input.expiresAt,
+      requiresApproval: input.requiresApproval ?? false,
+      createdAt: input.createdAt ?? new Date().toISOString(),
+    };
+    this.#grants.set(grantId, grant);
+    return grant;
+  }
+
+  getGrant(grantId: string): StoredGrant | undefined {
+    return this.#grants.get(grantId);
+  }
+
+  listGrants(filter: {
+    workspaceId?: WorkspaceId;
+    subject?: ActorAddress;
+  } = {}): StoredGrant[] {
+    return [...this.#grants.values()].filter((g) => {
+      if (filter.workspaceId && g.workspaceId !== filter.workspaceId) {
+        return false;
+      }
+      if (filter.subject && g.subject !== filter.subject) {
+        return false;
+      }
+      return true;
+    });
+  }
+
+  revokeGrant(grantId: string, revokedAt?: string): StoredGrant {
+    const grant = this.#grants.get(grantId);
+    if (!grant) {
+      throw new Error(`Unknown grant: ${grantId}`);
+    }
+    if (grant.revokedAt) {
+      throw new Error(`Grant already revoked: ${grantId}`);
+    }
+    const updated: StoredGrant = {
+      ...grant,
+      revokedAt: revokedAt ?? new Date().toISOString(),
+    };
+    this.#grants.set(grantId, updated);
+    return updated;
+  }
+
+  evaluateAuthorization(req: AuthzRequest) {
+    return evaluateGrant(this.#grantRows(), req);
+  }
+
+  recordApproval(input: RecordApprovalInput): ApprovalRecord {
+    const grant = this.#grants.get(input.grantId);
+    if (!grant) {
+      throw new Error(`Unknown grant: ${input.grantId}`);
+    }
+    if (grant.revokedAt) {
+      throw new Error(`Grant revoked: ${input.grantId}`);
+    }
+    this.workspace.assertActorInWorkspace(grant.workspaceId, input.subject);
+    if (
+      grant.subject !== input.subject ||
+      grant.resource !== input.resource ||
+      grant.action !== input.action
+    ) {
+      throw new Error("Approval does not match grant scope");
+    }
+    const approvalId = input.approvalId ?? generateApprovalId();
+    if (this.#approvals.has(approvalId)) {
+      throw new Error(`Approval already exists: ${approvalId}`);
+    }
+    const record: ApprovalRecord = {
+      approvalId,
+      grantId: input.grantId,
+      subject: input.subject,
+      resource: input.resource,
+      action: input.action,
+      payloadHash: input.payloadHash,
+      approved: input.approved,
+      decidedAt: input.decidedAt ?? new Date().toISOString(),
+    };
+    this.#approvals.set(approvalId, record);
+    return record;
+  }
+
+  getApproval(approvalId: string): ApprovalRecord | undefined {
+    return this.#approvals.get(approvalId);
+  }
+
+  gateProtectedAction(
+    req: AuthzRequest,
+    binding: ActionBinding,
+    approvalId?: string,
+  ): ExecutionGate {
+    const approval = approvalId ? this.#approvals.get(approvalId) : undefined;
+    return gateProtectedAction(this.#grantRows(), req, binding, approval);
+  }
+
+  #grantRows(): PermissionGrant[] {
+    return [...this.#grants.values()];
+  }
+}
