@@ -677,4 +677,99 @@ describe("@acpp/api", () => {
       assert.equal(listed.receipts.length, 2);
     });
   });
+
+  it("discovers identity and policy-permitted capabilities (P-040)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "ws_disc",
+      slug: "disc",
+      displayName: "Discovery",
+    });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner",
+      displayName: "Owner",
+    });
+    const viewer = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "viewer",
+      displayName: "Viewer",
+    });
+    const material = generateEd25519KeyPair();
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const reg = await fetch(`${base}/v1/workspaces/${ws.workspaceId}/identities`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actorType: "agent",
+          actorId: "01JDISC",
+          displayName: "Discovery agent",
+          publicKey: material.publicKey,
+        }),
+      });
+      assert.equal(reg.status, 201);
+      const registered = (await reg.json()) as {
+        identity: { address: string };
+      };
+      const subject = registered.identity.address;
+      const resource = "github:repo:org/repo";
+      const action = "issues.comment";
+
+      await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          grantedBy: owner.address,
+          subject,
+          resource,
+          action,
+        }),
+      });
+
+      const selfDiscovery = await fetch(
+        `${base}/v1/identities/${subject}/capabilities?workspaceId=${encodeURIComponent(ws.workspaceId)}`,
+      );
+      assert.equal(selfDiscovery.status, 200);
+      const selfBody = (await selfDiscovery.json()) as {
+        discoveryIsNotConsent: boolean;
+        capabilities: { resource: string; action: string }[];
+      };
+      assert.equal(selfBody.discoveryIsNotConsent, true);
+      assert.equal(selfBody.capabilities.length, 1);
+      assert.equal(selfBody.capabilities[0]!.resource, resource);
+
+      const crossDenied = await fetch(
+        `${base}/v1/identities/${subject}/capabilities?workspaceId=${encodeURIComponent(ws.workspaceId)}&requester=${encodeURIComponent(viewer.address)}`,
+      );
+      assert.equal(crossDenied.status, 403);
+
+      await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          grantedBy: owner.address,
+          subject: viewer.address,
+          resource: `acpp:identity:${subject}`,
+          action: "capabilities:read",
+        }),
+      });
+
+      const crossAllowed = await fetch(
+        `${base}/v1/identities/${subject}/capabilities?workspaceId=${encodeURIComponent(ws.workspaceId)}&requester=${encodeURIComponent(viewer.address)}`,
+      );
+      assert.equal(crossAllowed.status, 200);
+
+      const mcpDiscovery = await fetch(
+        `${base}/v1/mcp/capabilities?workspaceId=${encodeURIComponent(ws.workspaceId)}&subject=${encodeURIComponent(subject)}&connectionId=conn_test&allowedTools=search,run_shell`,
+      );
+      assert.equal(mcpDiscovery.status, 200);
+      const mcpBody = (await mcpDiscovery.json()) as { tools: unknown[] };
+      assert.equal(mcpBody.tools.length, 0);
+    });
+  });
 });
