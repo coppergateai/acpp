@@ -57,7 +57,7 @@ Run the demo against the running API:
 ACPP_API_URL=http://127.0.0.1:8787 pnpm quickstart
 ```
 
-For real GitHub calls, set a token when connecting the workspace (`POST /v1/workspaces/{id}/connections/github`). The quickstart demo does **not** need this.
+For real GitHub calls, set a token when connecting the workspace (`POST /v1/workspaces/{id}/connections/github` with `connectedBy` set to a human actor address). The quickstart demo does **not** need this.
 
 ## What the demo proves
 
