@@ -96,6 +96,27 @@ describe("@acpp/api", () => {
     });
   });
 
+  it("creates workspace over HTTP", async () => {
+    await withServer(new IdentityRegistry(), async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const res = await fetch(`${base}/v1/workspaces`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: "http-create",
+          slug: "http-create",
+          displayName: "HTTP create",
+        }),
+      });
+      assert.equal(res.status, 201);
+      const body = (await res.json()) as {
+        workspace: { workspaceId: string; slug: string };
+      };
+      assert.equal(body.workspace.workspaceId, "ws_http-create");
+      assert.equal(body.workspace.slug, "http-create");
+    });
+  });
+
   it("registers identity and verifies signature over HTTP", async () => {
     const registry = new IdentityRegistry();
     const ws = registry.workspace.createWorkspace({
