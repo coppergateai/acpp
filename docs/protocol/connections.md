@@ -5,7 +5,7 @@ Workspace-scoped tool connections let operators configure an integration **once*
 ## Model
 
 - **Connection** — metadata visible to workspace operators (`connectionId`, `installationId`, `credentialRef`, timestamps). No raw tokens in API responses or grant records.
-- **ConnectionCredentialReference** — opaque server-side ref resolved only during authorized execution (P-021 expands rotation and outcome states).
+- **ConnectionCredentialReference** — opaque server-side ref with `active` / `rotated` / `revoked` metadata; raw tokens resolve only during authorized execution.
 - **Resource** — `github:repo:{owner}/{name}` via `@acpp/github` `githubResource()`.
 - **Actions (MVP)** — `repos.metadata.read`, `issues.comment`.
 
@@ -14,6 +14,7 @@ Workspace-scoped tool connections let operators configure an integration **once*
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/v1/workspaces/{workspaceId}/connections/github` | Connect GitHub once per workspace (`installationId`, `accessToken` body fields) |
+| `POST` | `/v1/workspaces/{workspaceId}/connections/github/rotate` | Rotate installation token (`connectionId`, `accessToken`); supersedes prior `credentialRef` |
 | `GET` | `/v1/workspaces/{workspaceId}/connections` | List connections (credential refs only) |
 | `POST` | `/v1/github/actions/execute` | Policy gate + GitHub HTTP for an authorized agent |
 
@@ -27,11 +28,20 @@ Workspace-scoped tool connections let operators configure an integration **once*
   "repo": "org/name",
   "action": "repos.metadata.read",
   "payload": {},
-  "approvalId": "optional when grant requires approval"
+  "approvalId": "optional when grant requires approval",
+  "idempotencyKey": "optional; blocks blind retry after outcome_unknown"
 }
 ```
 
-Flow: tenant-scoped grant check (`gateProtectedAction`) → resolve credential by ref → `@acpp/github` real HTTP to `api.github.com`.
+Flow: tenant-scoped grant check (`gateProtectedAction`) → `ExecutionStore` lifecycle (`not_started` → `authorized` → `running` → terminal state) → resolve credential by ref → `@acpp/github` real HTTP to `api.github.com`.
+
+### Execution states (PRODUCT §14.5)
+
+Protected GitHub calls persist an `Execution` record with states including `not_started`, `authorized`, `awaiting_approval`, `running`, `succeeded`, `failed`, `rejected`, `cancelled`, and `outcome_unknown`.
+
+When the downstream response is lost (transport error), the gateway records `outcome_unknown` and returns `504`. Reusing the same `idempotencyKey` after `outcome_unknown` returns `409` with `no_blind_retry` — the system does not automatically repeat potentially non-idempotent side effects.
+
+Receipts map `outcome_unknown` to an `unknown` execution outcome so success is never implied (PRODUCT §14.2 #10).
 
 ## Invariants
 
