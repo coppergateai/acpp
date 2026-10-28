@@ -20,6 +20,12 @@ importers:
       '@acpp/core':
         specifier: workspace:*
         version: link:../../packages/acpp-core
+      '@acpp/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@acpp/identity':
+        specifier: workspace:*
+        version: link:../../packages/acpp-identity
     devDependencies:
       '@acpp/typescript-config':
         specifier: workspace:*
@@ -176,6 +182,9 @@ importers:
       '@acpp/core':
         specifier: workspace:*
         version: link:../acpp-core
+      '@acpp/identity':
+        specifier: workspace:*
+        version: link:../acpp-identity
     devDependencies:
       '@acpp/policy':
         specifier: workspace:*
