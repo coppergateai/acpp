@@ -13,7 +13,8 @@
   "dependencies": {
     "@acpp/core": "workspace:*",
     "@acpp/db": "workspace:*",
-    "@acpp/identity": "workspace:*"
+    "@acpp/identity": "workspace:*",
+    "@acpp/signals": "workspace:*"
   },
   "devDependencies": {
     "@acpp/typescript-config": "workspace:*",
