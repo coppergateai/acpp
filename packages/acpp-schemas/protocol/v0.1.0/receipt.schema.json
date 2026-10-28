@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acpp.ai/schemas/protocol/v0.1.0/receipt",
+  "title": "Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receiptId",
+    "signalId",
+    "sender",
+    "verificationOk",
+    "decision",
+    "execution",
+    "createdAt"
+  ],
+  "properties": {
+    "receiptId": { "type": "string", "minLength": 1 },
+    "signalId": { "type": "string", "pattern": "^[A-Za-z0-9_-]{8,128}$" },
+    "sender": {
+      "type": "string",
+      "pattern": "^acpp:(human|agent|service|organization|application):[A-Za-z0-9_-]+$"
+    },
+    "verificationOk": { "type": "boolean" },
+    "decision": { "$ref": "authorization-decision.schema.json" },
+    "approvalId": { "type": "string" },
+    "execution": { "$ref": "#/$defs/executionOutcome" },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "executionOutcome": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "const": "succeeded" },
+            "externalRef": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "error"],
+          "properties": {
+            "status": { "const": "failed" },
+            "error": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "note"],
+          "properties": {
+            "status": { "const": "unknown" },
+            "note": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "reason"],
+          "properties": {
+            "status": { "const": "denied" },
+            "reason": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}
