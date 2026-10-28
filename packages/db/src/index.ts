@@ -1,6 +1,6 @@
 /**
  * Logical persistence model for ACPP (PRODUCT.md §14.4).
- * PostgreSQL/Drizzle migrations land with S-010; identity registry is in-memory for P-010.
+ * Signal persistence is in-memory for S-010; PostgreSQL/Drizzle migrations follow the same model.
  */
 export const LOGICAL_ENTITIES = [
   "Workspace",
@@ -51,3 +51,11 @@ export {
   type RotateKeyInput,
   type VerifyStoredSignatureInput,
 } from "./identity-store.js";
+
+export {
+  SignalStore,
+  type SignalDeliveryRecord,
+  type SignalDeliveryStatus,
+  type SignalRecord,
+  type SubmitSignalResult,
+} from "./signal-store.js";

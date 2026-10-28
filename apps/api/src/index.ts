@@ -1,9 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { ACPP_PROTOCOL_VERSION, isActorAddress } from "@acpp/core";
-import { IdentityRegistry, isWorkspaceId } from "@acpp/db";
+import { ACPP_PROTOCOL_VERSION, isActorAddress, type SignalEnvelope } from "@acpp/core";
+import { IdentityRegistry, SignalStore, isWorkspaceId } from "@acpp/db";
 
 export type ApiServerOptions = {
   registry?: IdentityRegistry;
+  signals?: SignalStore;
 };
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
@@ -23,10 +24,11 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 }
 
 /**
- * HTTP API — health plus identity registry (P-010). Broader Developer API: A-010.
+ * HTTP API — health, identity registry (P-010), signal gateway (S-010). Broader Developer API: A-010.
  */
 export function createApiServer(options: ApiServerOptions = {}) {
   const registry = options.registry ?? new IdentityRegistry();
+  const signals = options.signals ?? new SignalStore(registry);
 
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -140,6 +142,52 @@ export function createApiServer(options: ApiServerOptions = {}) {
         });
         return;
       }
+    }
+
+    const signalMatch = path.match(/^\/v1\/signals\/([A-Za-z0-9_-]{8,128})$/);
+    if (req.method === "GET" && signalMatch) {
+      const signalId = signalMatch[1]!;
+      const signal = signals.getSignal(signalId);
+      if (!signal) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      const delivery = signals.getDelivery(signalId);
+      sendJson(res, 200, { signal, delivery });
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/signals") {
+      const body = (await readJsonBody(req)) as SignalEnvelope;
+      const result = signals.submitSignal(body);
+      if (!result.ok) {
+        if (result.reason === "replay_rejected" || result.reason === "signal_id_conflict") {
+          sendJson(res, 409, {
+            error: result.reason,
+            existing: result.existing,
+          });
+          return;
+        }
+        const status =
+          result.reason === "invalid_envelope" ||
+          result.reason === "invalid_signature" ||
+          result.reason === "unknown_key" ||
+          result.reason === "key_not_active"
+            ? 400
+            : result.reason === "unknown_identity"
+              ? 404
+              : 403;
+        sendJson(res, status, {
+          error: result.reason,
+          detail: result.detail,
+        });
+        return;
+      }
+      sendJson(res, 201, {
+        signal: result.signal,
+        delivery: result.delivery,
+      });
+      return;
     }
 
     if (req.method === "POST" && path === "/v1/verify") {
