@@ -53,6 +53,43 @@ describe("@acpp/signals", () => {
     }
   });
 
+  it("requires correlationId for response and approval categories", () => {
+    const missing = validateSignalEnvelope(
+      baseEnvelope({ type: "response", correlationId: undefined }),
+    );
+    assert.equal(missing.ok, false);
+    if (!missing.ok) {
+      assert.equal(missing.reason, "missing_correlation_id");
+    }
+    const ok = validateSignalEnvelope(
+      baseEnvelope({
+        type: "approval",
+        correlationId: "thread_req_01",
+      }),
+    );
+    assert.equal(ok.ok, true);
+  });
+
+  it("accepts all MVP signal categories with valid correlation when required", () => {
+    for (const type of [
+      "event",
+      "request",
+      "offer",
+      "response",
+      "approval",
+      "revocation",
+    ] as const) {
+      const envelope = baseEnvelope({
+        type,
+        signalId: `sig_cat_${type}`.slice(0, 20),
+        ...(type === "response" || type === "approval"
+          ? { correlationId: "thread_cat_01" }
+          : {}),
+      });
+      assert.equal(validateSignalEnvelope(envelope).ok, true, type);
+    }
+  });
+
   it("round-trips verify with identity crypto", () => {
     const material = generateEd25519KeyPair();
     const envelope = baseEnvelope({
