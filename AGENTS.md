@@ -6,3 +6,4 @@
 - Dogfood: [`docs/ACPP_DOGFOOD.md`](./docs/ACPP_DOGFOOD.md).
 - Coppergate D13 product signals ≠ ACPP protocol signals.
 - No paid pricing UI until an explicit product decision.
+- **Lockfile:** any `package.json` dependency change must update `pnpm-lock.yaml` (`pnpm install`). CI uses `--frozen-lockfile` and fails closed otherwise.
