@@ -250,6 +250,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
         action?: string;
         expiresAt?: string;
         requiresApproval?: boolean;
+        policyMode?: "automatic" | "approval_required" | "denied";
         grantId?: string;
       };
       if (
@@ -279,6 +280,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
           action: body.action,
           expiresAt: body.expiresAt,
           requiresApproval: body.requiresApproval,
+          policyMode: body.policyMode,
         });
         sendJson(res, 201, { grant });
       } catch (err) {
@@ -352,6 +354,119 @@ export function createApiServer(options: ApiServerOptions = {}) {
       return;
     }
 
+    if (req.method === "GET" && path === "/v1/approval-requests") {
+      const workspaceId = url.searchParams.get("workspaceId");
+      const status = url.searchParams.get("status") ?? undefined;
+      if (!workspaceId || !isWorkspaceId(workspaceId)) {
+        sendJson(res, 400, { error: "missing_or_invalid_workspace" });
+        return;
+      }
+      if (
+        status &&
+        !["pending", "approved", "denied", "expired", "stale"].includes(status)
+      ) {
+        sendJson(res, 400, { error: "invalid_status" });
+        return;
+      }
+      try {
+        const requests = grants.listApprovalRequests({
+          workspaceId,
+          status: status as
+            | "pending"
+            | "approved"
+            | "denied"
+            | "expired"
+            | "stale"
+            | undefined,
+        });
+        sendJson(res, 200, { requests });
+      } catch (err) {
+        sendJson(res, 400, {
+          error: "list_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/approval-requests") {
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        subject?: string;
+        resource?: string;
+        action?: string;
+        payloadHash?: string;
+        payload?: unknown;
+        context?: { reason?: string; risks?: string[] };
+        expiresAt?: string;
+      };
+      const payloadHash =
+        body.payloadHash ??
+        (body.payload !== undefined ? hashActionPayload(body.payload) : undefined);
+      if (
+        !body.workspaceId ||
+        !body.subject ||
+        !body.resource ||
+        !body.action ||
+        payloadHash === undefined ||
+        !isWorkspaceId(body.workspaceId) ||
+        !isActorAddress(body.subject)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      try {
+        const request = grants.submitApprovalRequest({
+          workspaceId: body.workspaceId,
+          subject: body.subject,
+          resource: body.resource,
+          action: body.action,
+          payloadHash,
+          context: body.context,
+          expiresAt: body.expiresAt,
+        });
+        sendJson(res, 201, { request });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes("denied by policy") ? 403 : 409;
+        sendJson(res, status, { error: "approval_request_failed", message });
+      }
+      return;
+    }
+
+    const decideMatch = path.match(/^\/v1\/approvals\/([A-Za-z0-9_-]+)\/decide$/);
+    if (req.method === "POST" && decideMatch) {
+      const requestId = decideMatch[1]!;
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        approved?: boolean;
+      };
+      if (
+        !body.workspaceId ||
+        body.approved === undefined ||
+        !isWorkspaceId(body.workspaceId)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      try {
+        const result = grants.decideApprovalRequest(requestId, {
+          workspaceId: body.workspaceId,
+          approved: body.approved,
+        });
+        sendJson(res, 200, result);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes("expired")
+          ? 410
+          : message.includes("Unknown")
+            ? 404
+            : 409;
+        sendJson(res, status, { error: "decide_failed", message });
+      }
+      return;
+    }
+
     if (req.method === "POST" && path === "/v1/approvals") {
       const body = (await readJsonBody(req)) as {
         grantId?: string;
@@ -406,6 +521,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
         payloadHash?: string;
         payload?: unknown;
         approvalId?: string;
+        approvalRequestId?: string;
       };
       const payloadHash =
         body.payloadHash ??
@@ -433,6 +549,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
           },
           { payloadHash },
           body.approvalId,
+          body.approvalRequestId,
         );
         const status = gate.allowed ? 200 : 403;
         sendJson(res, status, { gate });
