@@ -32,6 +32,9 @@ importers:
       '@acpp/policy':
         specifier: workspace:*
         version: link:../../packages/acpp-policy
+      '@acpp/receipts':
+        specifier: workspace:*
+        version: link:../../packages/acpp-receipts
       '@acpp/signals':
         specifier: workspace:*
         version: link:../../packages/acpp-signals
@@ -50,6 +53,10 @@ importers:
         version: 5.9.3
 
   apps/web:
+    dependencies:
+      '@acpp/receipts':
+        specifier: workspace:*
+        version: link:../../packages/acpp-receipts
     devDependencies:
       '@acpp/typescript-config':
         specifier: workspace:*
@@ -219,6 +226,9 @@ importers:
       '@acpp/policy':
         specifier: workspace:*
         version: link:../acpp-policy
+      '@acpp/receipts':
+        specifier: workspace:*
+        version: link:../acpp-receipts
       '@acpp/signals':
         specifier: workspace:*
         version: link:../acpp-signals
