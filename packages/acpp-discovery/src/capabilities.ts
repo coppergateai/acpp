@@ -202,7 +202,12 @@ export function discoverMcpToolCapabilities(
     if (!tool) {
       continue;
     }
-    if (grant.action !== "invoke" && grant.action !== "tools.call") {
+    // Hosted gateway + grants use mcp.tools.call (P-050); accept legacy aliases too.
+    if (
+      grant.action !== "mcp.tools.call" &&
+      grant.action !== "invoke" &&
+      grant.action !== "tools.call"
+    ) {
       continue;
     }
     if (

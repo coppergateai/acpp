@@ -13,6 +13,7 @@ ACPP complements [Model Context Protocol (MCP)](https://modelcontextprotocol.io/
 | MCP gateway HTTP | **Live** | `GET /v1/mcp/capabilities` (P-040); `POST …/connections/mcp` + `POST /v1/mcp/tools/invoke` (P-050) |
 | MCP gateway logic | **`@acpp/mcp`** + **`@acpp/discovery`** | Pipeline, SSRF/allowlist helpers, permitted-tool discovery |
 | Coppergate bridge | **Consumer** | Coppergate `@coppergate/mcp-client` proxies via `ACPP_GATEWAY_URL` when set |
+| MCP host adapter (Claude / Cursor) | **Live — A-030** | `@acpp/mcp-host` stdio MCP server; see [`mcp-host.md`](./mcp-host.md) |
 
 ## Architecture sketch
 
@@ -101,5 +102,8 @@ import {
 - OAuth or MCP protocol replacement
 - Auto-approval of protected tools from LLM convenience helpers
 - Shipping every possible MCP connector in Phase 1
+- Becoming a Cursor or Claude product (hosts remain third-party; ACPP is the installable server)
 
-Phase 2 **P-050** adds a hardened MCP adapter or second connector without sprawl.
+## Host adapter (A-030)
+
+**Shipped** in `@acpp/mcp-host`. Claude Desktop and Cursor add ACPP via `mcp.json` (stdio). Host-initiated `tools/call` reuses the live gateway path (authenticate → grant → optional approval → execute → sanitize). See [`mcp-host.md`](./mcp-host.md).

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "acpp": {
+      "command": "node",
+      "args": [
+        "./packages/acpp-mcp-host/dist/cli.js"
+      ],
+      "env": {
+        "ACPP_EMBEDDED": "1"
+      }
+    }
+  }
+}

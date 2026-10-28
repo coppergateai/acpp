@@ -28,6 +28,7 @@ packages/
   acpp-policy/     # grants, deny, approval bind
   acpp-receipts/   # signal → decision → execution chain
   acpp-github/     # first connector
+  acpp-mcp-host/   # Cursor / Claude MCP host adapter (A-030)
   db/              # persistence (Drizzle)
 apps/
   api/             # Developer HTTP API
@@ -35,6 +36,15 @@ apps/
 examples/
   wedge-github/    # end-to-end quickstart
 ```
+
+## Cursor / Claude MCP (A-030)
+
+```bash
+pnpm --filter @acpp/mcp-host build
+# then add packages/acpp-mcp-host/dist/cli.js to Cursor mcp.json with ACPP_EMBEDDED=1
+```
+
+See [`docs/protocol/mcp-host.md`](./docs/protocol/mcp-host.md).
 
 ## Quick start
 

@@ -19,3 +19,7 @@
 ## Connector
 
 **GitHub** — first production-quality connector (`issues.comment` or `repos.metadata.read`).
+
+## Host path (adoption; not the wedge demo)
+
+**A-030 shipped** — add `@acpp/mcp-host` to Claude Desktop or Cursor (`mcp.json`, `ACPP_EMBEDDED=1`). Same allow/deny/receipt path via the gateway; see [`protocol/mcp-host.md`](./protocol/mcp-host.md). Does not replace this GitHub wedge demo.

@@ -180,4 +180,27 @@ describe("@acpp/discovery MCP tools", () => {
     });
     assert.equal(discovery.tools.length, 0);
   });
+
+  it("accepts hosted gateway action mcp.tools.call (P-050)", () => {
+    const grants: PermissionGrant[] = [
+      {
+        grantId: "gr_echo",
+        subject: agent,
+        resource: mcpResource(connectionId, "echo"),
+        action: "mcp.tools.call",
+        requiresApproval: false,
+      },
+    ];
+    const discovery = discoverMcpToolCapabilities({
+      workspaceId: "ws_test",
+      subject: agent,
+      connectionId,
+      grants,
+      connectionAllowedTools: ["echo"],
+    });
+    assert.deepEqual(
+      discovery.tools.map((t) => t.name),
+      ["echo"],
+    );
+  });
 });

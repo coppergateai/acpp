@@ -657,6 +657,22 @@ The architecture must account for tenant isolation, credential isolation, least-
 
 For remote MCP servers, the implementation must validate server identity and connection security and must not blindly trust a server merely because it is registered.
 
+### 10.7 MCP host adapters (Claude, Cursor, and peers)
+
+Without a thin adapter that major agent hosts can install, ACPP stays an HTTP/SDK-only control plane and is effectively unusable for developers who already work inside Claude Desktop, Cursor, and similar tools.
+
+ACPP must therefore expose itself as an **MCP server** those hosts can add (stdio and/or SSE), while preserving the same identity, grant, approval, credential-isolation, and receipt path as the hosted gateway.
+
+Product requirements:
+
+1. A developer can register an agent identity, connect a tool once in ACPP, grant scoped access, then add ACPP to Claude Desktop or Cursor via a short MCP config (`mcp.json` or equivalent).
+2. Tools advertised to the host are **policy-permitted capabilities only** (discovery ≠ consent; §10.4).
+3. Every consequential host-initiated tool call is authenticated as the agent actor, evaluated against grants, optionally approval-bound, executed via the connection credential ref, and linked on a receipt.
+4. The adapter is not a marketplace, not a Cursor/Claude product clone, and not a replacement for MCP — it is the host-facing surface of the existing gateway (§10.5).
+5. First targets: **Claude Desktop** and **Cursor**. Additional MCP-capable hosts may follow the same contract without per-host protocol forks.
+
+This host path is adoption-critical: protocol and dashboard value must be reachable from the tools developers already use daily.
+
 ---
 
 ## 11. Core Product Experience
@@ -889,6 +905,7 @@ Prove that a developer can:
 - A documented MCP integration path.
 - Credential isolation.
 - Per-agent access policies.
+- A documented path to install ACPP as an MCP server in Claude Desktop and Cursor (host adapter; may land as early Phase 2 if Phase 1 wedge proof is still open).
 
 **Receipts**
 
@@ -916,6 +933,7 @@ Prove that a developer can:
 - Quickstart guide.
 - Local development environment.
 - Example end-to-end integration.
+- MCP host install docs for Claude Desktop and Cursor (config snippet + allow/deny proof).
 
 ### 13.3 Explicitly out of scope for MVP
 
@@ -1428,7 +1446,7 @@ The first growth loop should be based on:
 2. A usable reference implementation.
 3. A compelling end-to-end demo.
 4. Open schemas and SDK examples.
-5. Integrations with existing developer tools.
+5. Integrations with existing developer tools — especially installable MCP host adapters for Claude Desktop and Cursor (§10.7).
 6. Reproducible security and authorization tests.
 7. Practical tutorials showing why ordinary API keys are insufficient for multi-agent authorization.
 
@@ -1494,12 +1512,14 @@ Goals:
 - Add audit export.
 - Introduce organization and team management.
 - Harden operational reliability.
+- Ship MCP host adapters so ACPP can be added to Claude Desktop and Cursor (and peers) without a custom HTTP client (§10.7).
 
 Exit criteria:
 
 - Multiple independent agent runtimes can integrate with the platform.
 - Customers can manage permissions without custom code for every integration.
 - Audit evidence supports real incident investigation.
+- A developer can complete the wedge (identity → connect → grant → allow → revoke → deny) from Claude Desktop or Cursor after adding ACPP as an MCP server.
 
 ### Phase 3 — Interoperable agent network
 

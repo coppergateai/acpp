@@ -47,9 +47,10 @@ Maps to PRODUCT.md **§22 Phase 2**. Do not pull these ahead of Phase 1 Open row
 | Status | ID | Title | Notes |
 | --- | --- | --- | --- |
 | Done | P-040 | Capability discovery (authorized) | PRODUCT §7 L2 / §10.4 — resolve identity + permitted capabilities only; discovery ≠ consent |
-| Open | SEC-020 | Bounded delegation (no privilege escalation) | PRODUCT §9.3 — delegator≥delegate; no nested escalation; expiration + revoke |
 | Done | A-020 | SDK quality pass (sign/verify/signals/authz/receipts) | PRODUCT §17.2 — `@acpp/sdk`; explicit approval/execute steps; `docs/protocol/sdk.md` |
 | Done | P-050 | Hardened MCP adapter + Coppergate bridge | PRODUCT §22 — `POST /v1/mcp/tools/invoke` + connect; Coppergate `@coppergate/mcp-client` proxies via `ACPP_GATEWAY_URL`; not a marketplace |
+| Done | A-030 | Claude + Cursor MCP host adapter | PRODUCT §10.7 / §22 — `@acpp/mcp-host` stdio MCP server; embedded demo + gateway proxy; `docs/protocol/mcp-host.md`; Cursor `mcp.json` install; not a marketplace |
+| Open | SEC-020 | Bounded delegation (no privilege escalation) | PRODUCT §9.3 — delegator≥delegate; no nested escalation; expiration + revoke |
 | Open | P-060 | Audit export for incident investigation | PRODUCT §15.6 / §22 — append-oriented export for authorized roles |
 | Open | P-070 | Organization + team roles | PRODUCT §22 — shared connections, team grants; still Community pricing surface |
 
@@ -65,7 +66,7 @@ Maps to PRODUCT.md **§22 Phase 2**. Do not pull these ahead of Phase 1 Open row
 
 ## Explicitly not Open IDs (PRODUCT §13.3)
 
-Do not invent work for: chat/messaging app, agent marketplace, reputation scores, crypto/token identity, foundation model, OAuth/MCP replacement, multi-agent orchestration product, paid hosted SKU UI, or unbounded cross-agent execution without policy.
+Do not invent work for: chat/messaging app, agent marketplace, reputation scores, crypto/token identity, foundation model, OAuth/MCP replacement, multi-agent orchestration product, paid hosted SKU UI, unbounded cross-agent execution without policy, or building a Cursor/Claude clone. **A-030** (install ACPP *into* those hosts as an MCP server) is explicitly in scope.
 
 ## Acceptance (every Open ID)
 

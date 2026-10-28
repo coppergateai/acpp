@@ -6,6 +6,8 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **A-030** — MCP host adapter (`@acpp/mcp-host`): stdio MCP server for Cursor / Claude Desktop; embedded local API + mock `echo` tool; policy-gated `acpp_*` / `mcp_*` tools via gateway; docs in [`protocol/mcp-host.md`](./protocol/mcp-host.md).
+- **P-040 fix** — MCP capability discovery accepts grant action `mcp.tools.call` (aligned with P-050 gateway).
 - **P-050** — Hardened MCP adapter: workspace `POST /v1/workspaces/{id}/connections/mcp`, policy-gated `POST /v1/mcp/tools/invoke` (SSRF + allowlist + sanitize), Coppergate bridge via `ACPP_GATEWAY_URL`. Not an MCP marketplace.
 - **Marketing site** — Premium ACPP landing page on `@acpp/web` at `/` (protocol principles, seven-layer status, real `@acpp/sdk` sample, wedge demonstration, integration honesty labels). Dashboard overview moved to `/dashboard`; receipt inspector remains at `/receipts`.
 - **A-020** — Reference SDK (`@acpp/sdk`): explicit sign/verify/signal helpers, hosted client for evaluate → approval → execute (no auto-approve convenience), execution proof guardrails, and [`docs/protocol/sdk.md`](./protocol/sdk.md) (PRODUCT §17.2).
