@@ -47,3 +47,7 @@ curl -sS http://127.0.0.1:3000/v1/protocol/schemas/signal-envelope | jq .title
 - **Hosted API** uses URL prefix `/v1` and OpenAPI `info.version` `1.0.0`.
 
 Breaking changes to either surface require a new protocol folder or API major version.
+
+## MCP routes (sketch)
+
+P-022 documents MCP gateway HTTP paths in the same OpenAPI file with `x-acpp-implementation-status: sketch`. They are listed in `@acpp/schemas` as `SKETCHED_MCP_HOSTED_PATHS` and are **not** part of `DOCUMENTED_HOSTED_PATHS` until P-050. See [`mcp-integration.md`](./mcp-integration.md).
