@@ -79,6 +79,10 @@ Compact mode uses `POST /v1/demo/wedge-revoke-proof`. Explicit mode walks the sa
 | Obtain receipt | auto on gated `POST /v1/github/actions/execute` |
 | Policy denial | revoke grant → evaluate denies → execute **403** |
 
+## Reference SDK
+
+For typed helpers (signing, explicit evaluate → approval → execute, receipts), see [`protocol/sdk.md`](./protocol/sdk.md) (`@acpp/sdk`).
+
 ## Related docs
 
 - Wedge narrative: [`WEDGE.md`](./WEDGE.md)

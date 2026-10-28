@@ -6,6 +6,7 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **A-020** — Reference SDK (`@acpp/sdk`): explicit sign/verify/signal helpers, hosted client for evaluate → approval → execute (no auto-approve convenience), execution proof guardrails, and [`docs/protocol/sdk.md`](./protocol/sdk.md) (PRODUCT §17.2).
 - **P-040** — Authorized capability discovery: `@acpp/discovery` (identity resolution + grant-derived capabilities, MCP permitted-tool discovery), `GET /v1/identities/{address}/capabilities`, live `GET /v1/mcp/capabilities`, and [`docs/protocol/discovery.md`](./protocol/discovery.md). Discovery ≠ consent (PRODUCT §5.2 / §10.4).
 - **P-022** — Documented MCP integration path: `@acpp/mcp` gateway pipeline + security boundary helpers (SSRF-safe endpoints, permitted-tool discovery, result sanitization), OpenAPI sketch routes (`SKETCHED_MCP_HOSTED_PATHS`), and [`docs/protocol/mcp-integration.md`](./protocol/mcp-integration.md). Not an MCP marketplace; execution adapter deferred to P-050.
 - **A-012** — Local dev quickstart with reproducible allow/deny demos: `POST /v1/workspaces`, `@acpp/example-quickstart` (`pnpm quickstart`, `pnpm demo:allow-deny-explicit`), and [`docs/QUICKSTART.md`](./QUICKSTART.md).

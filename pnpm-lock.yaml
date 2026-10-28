@@ -292,6 +292,40 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  packages/acpp-sdk:
+    dependencies:
+      '@acpp/core':
+        specifier: workspace:*
+        version: link:../acpp-core
+      '@acpp/github':
+        specifier: workspace:*
+        version: link:../acpp-github
+      '@acpp/identity':
+        specifier: workspace:*
+        version: link:../acpp-identity
+      '@acpp/policy':
+        specifier: workspace:*
+        version: link:../acpp-policy
+      '@acpp/receipts':
+        specifier: workspace:*
+        version: link:../acpp-receipts
+      '@acpp/signals':
+        specifier: workspace:*
+        version: link:../acpp-signals
+    devDependencies:
+      '@acpp/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.20.5
+      tsx:
+        specifier: ^4.19.4
+        version: 4.23.15
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   packages/acpp-signals:
     dependencies:
       '@acpp/core':
