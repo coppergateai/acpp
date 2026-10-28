@@ -10,3 +10,4 @@ coverage
 .next
 .vercel
 apps/web/public/index.html
+.env*
