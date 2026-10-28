@@ -40,7 +40,7 @@ Three independent claims:
 2. **Ownership** — who controls or belongs to whom inside a workspace.
 3. **Authorization** — explicit grants evaluated by `@acpp/policy`.
 
-A workspace owner or controller with no matching grant is denied on protected operations (deny-by-default). See `identity.md` and `authz.md`.
+A workspace owner or controller with no matching grant is denied on protected operations (deny-by-default). Authorization evaluate/execute require `workspaceId` and only consider grants in that tenant (SEC-011). See `identity.md` and `authz.md`.
 
 ## API / persistence status
 

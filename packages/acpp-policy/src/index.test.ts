@@ -21,6 +21,33 @@ describe("@acpp/policy", () => {
     assert.equal(d.reason, "no_matching_grant");
   });
 
+  it("denies out-of-scope resource or action", () => {
+    const grants: PermissionGrant[] = [
+      {
+        grantId: "g1",
+        subject,
+        resource: "github:repo:acme/app",
+        action: "issues.comment",
+        requiresApproval: false,
+      },
+    ];
+    const wrongResource = evaluateGrant(grants, {
+      subject,
+      resource: "github:repo:other/app",
+      action: "issues.comment",
+    });
+    assert.equal(wrongResource.allow, false);
+    assert.equal(wrongResource.reason, "no_matching_grant");
+
+    const wrongAction = evaluateGrant(grants, {
+      subject,
+      resource: "github:repo:acme/app",
+      action: "repos.delete",
+    });
+    assert.equal(wrongAction.allow, false);
+    assert.equal(wrongAction.reason, "no_matching_grant");
+  });
+
   it("allows matching non-revoked grant", () => {
     const grants: PermissionGrant[] = [
       {

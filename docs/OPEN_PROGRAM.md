@@ -27,7 +27,7 @@ Maps to PRODUCT.md **§13 MVP**, **§22 Phase 1**, and **§23 acceptance**. Prov
 | Done | S-010 | Authenticated signal send/receive + replay/idempotency | PRODUCT §8 / §13.2 Signals — `@acpp/signals` canonical signing; `SignalStore`; `/v1/signals` |
 | Done | S-011 | Signal categories + correlation + delivery acks | PRODUCT §8.1–8.4 — Event/Request/Offer/Response/Approval/Revocation; delivery ≠ execution |
 | Done | SEC-010 | PermissionGrant + expire + revoke + approval-bound action | PRODUCT §9 / §13.2 Authorization — wire `@acpp/policy` into API |
-| Open | SEC-011 | Deny-by-default + scopes + tenant isolation | PRODUCT §15.2 / §14.2 — no grant → no access; server-side tenant boundaries + tests |
+| Done | SEC-011 | Deny-by-default + scopes + tenant isolation | PRODUCT §15.2 / §14.2 — no grant → no access; server-side tenant boundaries + tests |
 | Open | SEC-012 | Approval inbox + action-binding integrity | PRODUCT §9.4 / §11.6 — Automatic / Approval required / Denied; reject stale or materially changed requests |
 | Open | P-020 | GitHub connection once + per-agent scope + one protected op | PRODUCT §10 / §12 Use Case D — real HTTP; credential isolation; issues.comment or repos.metadata.read |
 | Open | P-021 | Secret refs + execution outcome states | PRODUCT §10.3 / §14.5 — ConnectionCredentialReference; Not started→…→Outcome unknown; no blind retry |

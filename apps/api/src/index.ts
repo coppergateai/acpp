@@ -223,10 +223,10 @@ export function createApiServer(options: ApiServerOptions = {}) {
     }
 
     if (req.method === "GET" && path === "/v1/grants") {
-      const workspaceId = url.searchParams.get("workspaceId") ?? undefined;
+      const workspaceId = url.searchParams.get("workspaceId");
       const subject = url.searchParams.get("subject") ?? undefined;
-      if (workspaceId && !isWorkspaceId(workspaceId)) {
-        sendJson(res, 400, { error: "invalid_workspace" });
+      if (!workspaceId || !isWorkspaceId(workspaceId)) {
+        sendJson(res, 400, { error: "missing_or_invalid_workspace" });
         return;
       }
       if (subject && !isActorAddress(subject)) {
@@ -234,7 +234,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
         return;
       }
       const rows = grants.listGrants({
-        workspaceId: workspaceId as WorkspaceId | undefined,
+        workspaceId,
         subject: subject as ActorAddress | undefined,
       });
       sendJson(res, 200, { grants: rows });
@@ -244,6 +244,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
     if (req.method === "POST" && path === "/v1/grants") {
       const body = (await readJsonBody(req)) as {
         workspaceId?: string;
+        grantedBy?: string;
         subject?: string;
         resource?: string;
         action?: string;
@@ -253,10 +254,12 @@ export function createApiServer(options: ApiServerOptions = {}) {
       };
       if (
         !body.workspaceId ||
+        !body.grantedBy ||
         !body.subject ||
         !body.resource ||
         !body.action ||
         !isWorkspaceId(body.workspaceId) ||
+        !isActorAddress(body.grantedBy) ||
         !isActorAddress(body.subject)
       ) {
         sendJson(res, 400, { error: "invalid_body" });
@@ -270,6 +273,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
         const grant = grants.createGrant({
           grantId: body.grantId,
           workspaceId: body.workspaceId,
+          grantedBy: body.grantedBy,
           subject: body.subject,
           resource: body.resource,
           action: body.action,
@@ -289,12 +293,23 @@ export function createApiServer(options: ApiServerOptions = {}) {
     const revokeMatch = path.match(/^\/v1\/grants\/([A-Za-z0-9_-]+)\/revoke$/);
     if (req.method === "POST" && revokeMatch) {
       const grantId = revokeMatch[1]!;
+      const body = (await readJsonBody(req)) as { workspaceId?: string };
+      if (!body.workspaceId || !isWorkspaceId(body.workspaceId)) {
+        sendJson(res, 400, { error: "missing_or_invalid_workspace" });
+        return;
+      }
       try {
-        const grant = grants.revokeGrant(grantId);
+        const grant = grants.revokeGrant(grantId, {
+          workspaceId: body.workspaceId,
+        });
         sendJson(res, 200, { grant });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        const status = message.startsWith("Unknown grant") ? 404 : 409;
+        const status =
+          message.startsWith("Unknown grant") ||
+          message.startsWith("Tenant isolation")
+            ? 404
+            : 409;
         sendJson(res, status, { error: "revoke_failed", message });
       }
       return;
@@ -302,27 +317,38 @@ export function createApiServer(options: ApiServerOptions = {}) {
 
     if (req.method === "POST" && path === "/v1/authorization/evaluate") {
       const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
         subject?: string;
         resource?: string;
         action?: string;
         at?: string;
       };
       if (
+        !body.workspaceId ||
         !body.subject ||
         !body.resource ||
         !body.action ||
+        !isWorkspaceId(body.workspaceId) ||
         !isActorAddress(body.subject)
       ) {
         sendJson(res, 400, { error: "invalid_body" });
         return;
       }
-      const decision = grants.evaluateAuthorization({
-        subject: body.subject,
-        resource: body.resource,
-        action: body.action,
-        at: body.at,
-      });
-      sendJson(res, 200, { decision });
+      try {
+        const decision = grants.evaluateAuthorization({
+          workspaceId: body.workspaceId,
+          subject: body.subject,
+          resource: body.resource,
+          action: body.action,
+          at: body.at,
+        });
+        sendJson(res, 200, { decision });
+      } catch (err) {
+        sendJson(res, 403, {
+          error: "tenant_boundary",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       return;
     }
 
@@ -372,6 +398,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
 
     if (req.method === "POST" && path === "/v1/authorization/execute") {
       const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
         subject?: string;
         resource?: string;
         action?: string;
@@ -384,27 +411,37 @@ export function createApiServer(options: ApiServerOptions = {}) {
         body.payloadHash ??
         (body.payload !== undefined ? hashActionPayload(body.payload) : undefined);
       if (
+        !body.workspaceId ||
         !body.subject ||
         !body.resource ||
         !body.action ||
         payloadHash === undefined ||
+        !isWorkspaceId(body.workspaceId) ||
         !isActorAddress(body.subject)
       ) {
         sendJson(res, 400, { error: "invalid_body" });
         return;
       }
-      const gate = grants.gateProtectedAction(
-        {
-          subject: body.subject,
-          resource: body.resource,
-          action: body.action,
-          at: body.at,
-        },
-        { payloadHash },
-        body.approvalId,
-      );
-      const status = gate.allowed ? 200 : 403;
-      sendJson(res, status, { gate });
+      try {
+        const gate = grants.gateProtectedAction(
+          {
+            workspaceId: body.workspaceId,
+            subject: body.subject,
+            resource: body.resource,
+            action: body.action,
+            at: body.at,
+          },
+          { payloadHash },
+          body.approvalId,
+        );
+        const status = gate.allowed ? 200 : 403;
+        sendJson(res, status, { gate });
+      } catch (err) {
+        sendJson(res, 403, {
+          error: "tenant_boundary",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       return;
     }
 

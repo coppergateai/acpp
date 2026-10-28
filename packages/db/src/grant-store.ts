@@ -20,12 +20,19 @@ export type StoredGrant = PermissionGrant & {
 export type CreateGrantInput = {
   grantId?: string;
   workspaceId: WorkspaceId;
+  /** Actor issuing the grant — must not be the subject (PRODUCT §14.2). */
+  grantedBy: ActorAddress;
   subject: ActorAddress;
   resource: string;
   action: string;
   expiresAt?: string;
   requiresApproval?: boolean;
   createdAt?: string;
+};
+
+/** Authorization request scoped to a workspace tenant (PRODUCT §15.2). */
+export type TenantAuthzRequest = AuthzRequest & {
+  workspaceId: WorkspaceId;
 };
 
 export type RecordApprovalInput = {
@@ -65,6 +72,11 @@ export class GrantStore {
     if (!isWorkspaceId(input.workspaceId)) {
       throw new Error(`Invalid workspace id: ${input.workspaceId}`);
     }
+    this.#assertGranterCanGrant(
+      input.workspaceId,
+      input.grantedBy,
+      input.subject,
+    );
     this.workspace.assertActorInWorkspace(input.workspaceId, input.subject);
     const grantId = input.grantId ?? generateGrantId();
     if (this.#grants.has(grantId)) {
@@ -89,11 +101,14 @@ export class GrantStore {
   }
 
   listGrants(filter: {
-    workspaceId?: WorkspaceId;
+    workspaceId: WorkspaceId;
     subject?: ActorAddress;
-  } = {}): StoredGrant[] {
+  }): StoredGrant[] {
+    if (!isWorkspaceId(filter.workspaceId)) {
+      throw new Error(`Invalid workspace id: ${filter.workspaceId}`);
+    }
     return [...this.#grants.values()].filter((g) => {
-      if (filter.workspaceId && g.workspaceId !== filter.workspaceId) {
+      if (g.workspaceId !== filter.workspaceId) {
         return false;
       }
       if (filter.subject && g.subject !== filter.subject) {
@@ -103,24 +118,36 @@ export class GrantStore {
     });
   }
 
-  revokeGrant(grantId: string, revokedAt?: string): StoredGrant {
+  revokeGrant(
+    grantId: string,
+    options: { workspaceId?: WorkspaceId; revokedAt?: string } = {},
+  ): StoredGrant {
     const grant = this.#grants.get(grantId);
     if (!grant) {
       throw new Error(`Unknown grant: ${grantId}`);
+    }
+    if (
+      options.workspaceId &&
+      grant.workspaceId !== options.workspaceId
+    ) {
+      throw new Error(
+        `Tenant isolation: grant ${grantId} is not in workspace ${options.workspaceId}`,
+      );
     }
     if (grant.revokedAt) {
       throw new Error(`Grant already revoked: ${grantId}`);
     }
     const updated: StoredGrant = {
       ...grant,
-      revokedAt: revokedAt ?? new Date().toISOString(),
+      revokedAt: options.revokedAt ?? new Date().toISOString(),
     };
     this.#grants.set(grantId, updated);
     return updated;
   }
 
-  evaluateAuthorization(req: AuthzRequest) {
-    return evaluateGrant(this.#grantRows(), req);
+  evaluateAuthorization(req: TenantAuthzRequest) {
+    this.workspace.assertActorInWorkspace(req.workspaceId, req.subject);
+    return evaluateGrant(this.#grantRowsForWorkspace(req.workspaceId), req);
   }
 
   recordApproval(input: RecordApprovalInput): ApprovalRecord {
@@ -162,15 +189,59 @@ export class GrantStore {
   }
 
   gateProtectedAction(
-    req: AuthzRequest,
+    req: TenantAuthzRequest,
     binding: ActionBinding,
     approvalId?: string,
   ): ExecutionGate {
+    this.workspace.assertActorInWorkspace(req.workspaceId, req.subject);
     const approval = approvalId ? this.#approvals.get(approvalId) : undefined;
-    return gateProtectedAction(this.#grantRows(), req, binding, approval);
+    if (approval) {
+      const grant = this.#grants.get(approval.grantId);
+      if (!grant || grant.workspaceId !== req.workspaceId) {
+        return {
+          allowed: false,
+          reason: "tenant_grant_mismatch",
+          decision: evaluateGrant([], req),
+          requiresApproval: false,
+          approvalSatisfied: false,
+        };
+      }
+    }
+    return gateProtectedAction(
+      this.#grantRowsForWorkspace(req.workspaceId),
+      req,
+      binding,
+      approval,
+    );
   }
 
-  #grantRows(): PermissionGrant[] {
-    return [...this.#grants.values()];
+  #grantRowsForWorkspace(workspaceId: WorkspaceId): PermissionGrant[] {
+    return [...this.#grants.values()]
+      .filter((g) => g.workspaceId === workspaceId)
+      .map(({ workspaceId: _ws, createdAt: _at, ...grant }) => grant);
+  }
+
+  #assertGranterCanGrant(
+    workspaceId: WorkspaceId,
+    grantedBy: ActorAddress,
+    subject: ActorAddress,
+  ): void {
+    this.workspace.assertActorInWorkspace(workspaceId, grantedBy);
+    if (grantedBy === subject) {
+      throw new Error("Self-grant is not allowed");
+    }
+    const granter = this.workspace.getActor(grantedBy);
+    if (!granter) {
+      throw new Error(`Unknown granter: ${grantedBy}`);
+    }
+    if (granter.actorType === "human" || granter.actorType === "service") {
+      return;
+    }
+    if (this.workspace.isController(workspaceId, grantedBy, subject)) {
+      return;
+    }
+    throw new Error(
+      "Granter is not authorized to issue grants for this subject",
+    );
   }
 }

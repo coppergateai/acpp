@@ -32,7 +32,7 @@ Phase 1 spend order (see `docs/OPEN_PROGRAM.md`, aligned to PRODUCT.md §13 / §
 
 - `P-010` actor registry + keys → `P-011` workspace/ownership
 - `S-010` signal persistence + replay (shipped) → `S-011` categories/acks (shipped) → `SEC-010` permission grants
-- `SEC-010` grants API + approval bind → `SEC-011` deny-by-default/tenants → `SEC-012` approval inbox
+- `SEC-010` grants API + approval bind → `SEC-011` tenant-scoped evaluate/execute + self-grant deny → `SEC-012` approval inbox
 - `P-020` real GitHub connector → `P-021` secrets + outcome states
 - `P-030` receipt inspector → `P-031` dashboard IA + onboarding
 - `A-010` Developer API + quickstart → `A-011` OpenAPI/schemas → `A-012` local deny+allow demos
