@@ -531,6 +531,7 @@ describe("@acpp/api", () => {
           body: JSON.stringify({
             installationId: "999",
             accessToken: "ghs_super_secret",
+            connectedBy: owner.address,
           }),
         });
         assert.equal(connect.status, 201);
@@ -556,6 +557,7 @@ describe("@acpp/api", () => {
             body: JSON.stringify({
               installationId: "1000",
               accessToken: "other",
+              connectedBy: owner.address,
             }),
           },
         );
@@ -770,6 +772,140 @@ describe("@acpp/api", () => {
       assert.equal(mcpDiscovery.status, 200);
       const mcpBody = (await mcpDiscovery.json()) as { tools: unknown[] };
       assert.equal(mcpBody.tools.length, 0);
+    });
+  });
+
+  it("enforces organization team roles for shared connections and team grants (P-070)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "teams",
+      slug: "teams",
+      displayName: "Teams",
+    });
+    const org = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "organization",
+      id: "acme",
+      displayName: "Acme",
+    });
+    const admin = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "admin",
+      displayName: "Admin",
+    });
+    const member = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "member",
+      displayName: "Member",
+    });
+    const grantManager = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "grant-mgr",
+      displayName: "Grant manager",
+    });
+    const agent = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "worker",
+      displayName: "Worker",
+    });
+    registry.workspace.addOwnership({
+      workspaceId: ws.workspaceId,
+      owner: org.address,
+      subject: agent.address,
+      kind: "organizational_member",
+    });
+
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+
+      const createTeam = await fetch(`${base}/v1/workspaces/${ws.workspaceId}/teams`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          slug: "platform",
+          displayName: "Platform",
+          organizationAddress: org.address,
+        }),
+      });
+      assert.equal(createTeam.status, 201);
+      const teamBody = (await createTeam.json()) as { team: { teamId: string } };
+      const teamId = teamBody.team.teamId;
+
+      for (const [human, role] of [
+        [admin.address, "admin"],
+        [grantManager.address, "grant_manager"],
+        [member.address, "member"],
+      ] as const) {
+        const add = await fetch(
+          `${base}/v1/workspaces/${ws.workspaceId}/teams/${teamId}/members`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ member: human, role }),
+          },
+        );
+        assert.equal(add.status, 201);
+      }
+
+      const memberConnect = await fetch(
+        `${base}/v1/workspaces/${ws.workspaceId}/connections/github`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            installationId: "1",
+            accessToken: "secret",
+            connectedBy: member.address,
+            ownerOrganization: org.address,
+          }),
+        },
+      );
+      assert.equal(memberConnect.status, 400);
+
+      const adminConnect = await fetch(
+        `${base}/v1/workspaces/${ws.workspaceId}/connections/github`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            installationId: "1",
+            accessToken: "secret",
+            connectedBy: admin.address,
+            ownerOrganization: org.address,
+          }),
+        },
+      );
+      assert.equal(adminConnect.status, 201);
+
+      const memberGrant = await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          grantedBy: member.address,
+          subject: agent.address,
+          resource: "github:repo:org/repo",
+          action: "issues.comment",
+        }),
+      });
+      assert.equal(memberGrant.status, 409);
+
+      const mgrGrant = await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          grantedBy: grantManager.address,
+          subject: agent.address,
+          resource: "github:repo:org/repo",
+          action: "issues.comment",
+        }),
+      });
+      assert.equal(mgrGrant.status, 201);
     });
   });
 });
