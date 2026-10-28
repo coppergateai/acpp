@@ -415,4 +415,132 @@ describe("@acpp/api", () => {
       assert.equal(wrongTenant.status, 403);
     });
   });
+
+  it("approval inbox: submit, list, decide, execute; stale after material change (SEC-012)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "inbox-api",
+      slug: "inbox-api",
+      displayName: "Inbox API",
+    });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner",
+      displayName: "Owner",
+    });
+    const material = generateEd25519KeyPair();
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const reg = await fetch(`${base}/v1/workspaces/${ws.workspaceId}/identities`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actorType: "agent",
+          actorId: "01JINBOX",
+          displayName: "Inbox agent",
+          publicKey: material.publicKey,
+        }),
+      });
+      const registered = (await reg.json()) as {
+        identity: { address: string };
+      };
+      const subject = registered.identity.address;
+      const resource = "github:repo:org/repo";
+      const action = "issues.comment";
+
+      await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          grantedBy: owner.address,
+          subject,
+          resource,
+          action,
+          requiresApproval: true,
+        }),
+      });
+
+      const payload = { body: "needs review" };
+      const submit = await fetch(`${base}/v1/approval-requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          subject,
+          resource,
+          action,
+          payload,
+          context: { reason: "Post-incident update" },
+        }),
+      });
+      assert.equal(submit.status, 201);
+      const submitted = (await submit.json()) as {
+        request: { requestId: string; status: string };
+      };
+      assert.equal(submitted.request.status, "pending");
+
+      const list = await fetch(
+        `${base}/v1/approval-requests?workspaceId=${encodeURIComponent(ws.workspaceId)}&status=pending`,
+      );
+      const inbox = (await list.json()) as { requests: unknown[] };
+      assert.equal(inbox.requests.length, 1);
+
+      const evaluate = await fetch(`${base}/v1/authorization/evaluate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ workspaceId: ws.workspaceId, subject, resource, action }),
+      });
+      const decision = (await evaluate.json()) as {
+        decision: { policyMode: string };
+      };
+      assert.equal(decision.decision.policyMode, "approval_required");
+
+      const decide = await fetch(
+        `${base}/v1/approvals/${submitted.request.requestId}/decide`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ workspaceId: ws.workspaceId, approved: true }),
+        },
+      );
+      assert.equal(decide.status, 200);
+
+      const execute = await fetch(`${base}/v1/authorization/execute`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          subject,
+          resource,
+          action,
+          payload,
+          approvalRequestId: submitted.request.requestId,
+        }),
+      });
+      assert.equal(execute.status, 200);
+      const gate = (await execute.json()) as {
+        gate: { allowed: boolean; policyMode: string };
+      };
+      assert.equal(gate.gate.allowed, true);
+      assert.equal(gate.gate.policyMode, "approval_required");
+
+      const tampered = await fetch(`${base}/v1/authorization/execute`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          subject,
+          resource,
+          action,
+          payload: { body: "changed after approval" },
+          approvalRequestId: submitted.request.requestId,
+        }),
+      });
+      assert.equal(tampered.status, 403);
+      const tamperedBody = (await tampered.json()) as { gate: { reason: string } };
+      assert.equal(tamperedBody.gate.reason, "approval_request_payload_mismatch");
+    });
+  });
 });
