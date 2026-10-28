@@ -59,6 +59,30 @@ describe("@acpp/api", () => {
     });
   });
 
+  it("serves developer catalog and workspace CRUD", async () => {
+    await withServer(new IdentityRegistry(), async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const catalog = await fetch(`${base}/v1`);
+      assert.equal(catalog.status, 200);
+      const routes = (await catalog.json()) as { routes: unknown[]; documentation: string };
+      assert.ok(routes.routes.length >= 15);
+      assert.match(routes.documentation, /QUICKSTART/);
+      const create = await fetch(`${base}/v1/workspaces`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          id: "dev-api",
+          slug: "dev-api",
+          displayName: "Developer API",
+        }),
+      });
+      assert.equal(create.status, 201);
+      const created = (await create.json()) as { workspace: { workspaceId: string } };
+      const get = await fetch(`${base}/v1/workspaces/${created.workspace.workspaceId}`);
+      assert.equal(get.status, 200);
+    });
+  });
+
   it("registers identity and verifies signature over HTTP", async () => {
     const registry = new IdentityRegistry();
     const ws = registry.workspace.createWorkspace({
