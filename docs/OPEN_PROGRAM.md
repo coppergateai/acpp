@@ -49,7 +49,7 @@ Maps to PRODUCT.md **§22 Phase 2**. Do not pull these ahead of Phase 1 Open row
 | Done | P-040 | Capability discovery (authorized) | PRODUCT §7 L2 / §10.4 — resolve identity + permitted capabilities only; discovery ≠ consent |
 | Open | SEC-020 | Bounded delegation (no privilege escalation) | PRODUCT §9.3 — delegator≥delegate; no nested escalation; expiration + revoke |
 | Done | A-020 | SDK quality pass (sign/verify/signals/authz/receipts) | PRODUCT §17.2 — `@acpp/sdk`; explicit approval/execute steps; `docs/protocol/sdk.md` |
-| Open | P-050 | Second connector or hardened MCP adapter | PRODUCT §22 Phase 2 — expand beyond GitHub without sprawl |
+| Done | P-050 | Second connector or hardened MCP adapter | PRODUCT §22 Phase 2 — expand beyond GitHub without sprawl |
 | Open | P-060 | Audit export for incident investigation | PRODUCT §15.6 / §22 — append-oriented export for authorized roles |
 | Open | P-070 | Organization + team roles | PRODUCT §22 — shared connections, team grants; still Community pricing surface |
 

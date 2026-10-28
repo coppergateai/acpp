@@ -29,18 +29,21 @@ describe("@acpp/schemas", () => {
     }
   });
 
-  it("documents MCP gateway sketch paths separately from implemented routes", () => {
+  it("keeps SKETCHED_MCP_HOSTED_PATHS empty after P-050 MCP adapter ships", () => {
+    assert.equal(SKETCHED_MCP_HOSTED_PATHS.length, 0);
     const doc = loadHostedOpenApi();
-    for (const path of SKETCHED_MCP_HOSTED_PATHS) {
-      assert.ok(path in doc.paths, `missing MCP sketch path ${path}`);
-      assert.equal(
-        path in DOCUMENTED_HOSTED_PATHS,
-        false,
-        `${path} must stay sketch-only until P-050`,
+    for (const path of [
+      "/v1/workspaces/{workspaceId}/connections/mcp",
+      "/v1/mcp/tools/invoke",
+    ] as const) {
+      assert.ok(
+        (DOCUMENTED_HOSTED_PATHS as readonly string[]).includes(path),
+        `${path} must be implemented`,
       );
+      assert.ok(path in doc.paths);
       const pathItem = doc.paths[path] as Record<string, Record<string, unknown>>;
       for (const method of Object.values(pathItem)) {
-        assert.equal(method["x-acpp-implementation-status"], "sketch");
+        assert.notEqual(method["x-acpp-implementation-status"], "sketch");
       }
     }
   });

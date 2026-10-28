@@ -62,6 +62,20 @@ export function executionOutcomeFromGithub(result: {
   return { status: "failed", error: result.error ?? "execution_failed" };
 }
 
+export function executionOutcomeFromMcp(result: {
+  ok: boolean;
+  externalRef?: string;
+  error?: string;
+}): ExecutionOutcome {
+  if (result.ok) {
+    return { status: "succeeded", externalRef: result.externalRef };
+  }
+  if (result.error === "unauthorized" || result.error === "tool_not_allowed") {
+    return { status: "denied", reason: result.error };
+  }
+  return { status: "failed", error: result.error ?? "execution_failed" };
+}
+
 export function executionOutcomeFromGate(gate: {
   allowed: boolean;
   reason: string;

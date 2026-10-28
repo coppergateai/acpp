@@ -52,6 +52,37 @@ describe("ConnectionStore", () => {
     );
   });
 
+  it("connects MCP once per workspace with tool allowlist and hidden token", () => {
+    const workspace = new WorkspaceStore();
+    const ws = workspace.createWorkspace({
+      id: "mcp",
+      slug: "mcp",
+      displayName: "MCP",
+    });
+    const store = new ConnectionStore(workspace);
+    const conn = store.connectMcp({
+      workspaceId: ws.workspaceId,
+      serverUrl: "https://tools.example.com/mcp",
+      allowedTools: ["search_docs", "read_file"],
+      accessToken: "mcp_bearer_secret",
+    });
+    assert.equal(conn.provider, "mcp");
+    assert.deepEqual(conn.allowedTools, ["search_docs", "read_file"]);
+    assert.equal(JSON.stringify(conn).includes("mcp_bearer"), false);
+    assert.equal(store.resolveCredential(conn.credentialRef), "mcp_bearer_secret");
+    assert.throws(
+      () =>
+        store.connectMcp({
+          workspaceId: ws.workspaceId,
+          serverUrl: "https://other.example/mcp",
+          allowedTools: ["x"],
+          accessToken: "tok2",
+        }),
+      /already exists/,
+    );
+    assert.equal(store.listConnections(ws.workspaceId).length, 1);
+  });
+
   it("scopes connection lookup by workspace tenant", () => {
     const workspace = new WorkspaceStore();
     const wsA = workspace.createWorkspace({ id: "a", slug: "a", displayName: "A" });
