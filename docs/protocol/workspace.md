@@ -42,7 +42,16 @@ Three independent claims:
 
 A workspace owner or controller with no matching grant is denied on protected operations (deny-by-default). Authorization evaluate/execute require `workspaceId` and only consider grants in that tenant (SEC-011). See `identity.md` and `authz.md`.
 
+## HTTP routes (A-010)
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/v1/workspaces` | Create workspace (`id`, `slug`, `displayName`) |
+| `GET` | `/v1/workspaces/{workspaceId}` | Fetch workspace metadata |
+
+Full route catalog: `GET /v1` on `@acpp/api` or [`docs/QUICKSTART.md`](../QUICKSTART.md).
+
 ## API / persistence status
 
-- **Now:** typed model + in-memory `WorkspaceStore`, `IdentityRegistry`, and `SignalStore` (`@acpp/db`) with tenant isolation tests; identity and signal HTTP routes on `@acpp/api` (P-010, S-010).
+- **Now:** typed model + in-memory `WorkspaceStore`, `IdentityRegistry`, and `SignalStore` (`@acpp/db`) with tenant isolation tests; workspace + identity and signal HTTP routes on `@acpp/api` (A-010, P-010, S-010).
 - **Next:** PostgreSQL/Drizzle migrations for durable signal tables (same logical entities).
