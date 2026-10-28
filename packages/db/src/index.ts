@@ -67,3 +67,9 @@ export {
   type StoredGrant,
   type TenantAuthzRequest,
 } from "./grant-store.js";
+
+export {
+  ConnectionStore,
+  type ConnectGithubInput,
+  type StoredGithubConnection,
+} from "./connection-store.js";
