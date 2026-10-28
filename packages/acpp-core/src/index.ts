@@ -1,18 +1,14 @@
+import type { SignalType } from "./signal-categories.js";
+
 /** ACPP protocol version for envelopes and APIs. */
 export const ACPP_PROTOCOL_VERSION = "0.1.0" as const;
+
+export type { SignalType };
 
 export type ActorType = "human" | "agent" | "service" | "organization" | "application";
 
 /** Stable ACPP actor address (not a handle). */
 export type ActorAddress = `acpp:${ActorType}:${string}`;
-
-export type SignalType =
-  | "event"
-  | "request"
-  | "offer"
-  | "response"
-  | "approval"
-  | "revocation";
 
 /**
  * Transport-independent signal envelope (logical fields).
@@ -53,3 +49,13 @@ export function createActorAddress(
   }
   return `acpp:${type}:${id}`;
 }
+
+export {
+  isSignalReferenceId,
+  SIGNAL_CATEGORY_CATALOG,
+  SIGNAL_REFERENCE_ID_PATTERN,
+  signalCategoryRequiresCorrelation,
+  type SignalCategoryDefinition,
+  type SignalDeliveryAckState,
+  type SignalExecutionState,
+} from "./signal-categories.js";
