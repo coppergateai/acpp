@@ -26,6 +26,10 @@ import {
   type GithubHttpClient,
   type GithubProtectedAction,
 } from "@acpp/github";
+import {
+  discoverIdentityCapabilities,
+  discoverMcpToolCapabilities,
+} from "@acpp/discovery";
 import { hashActionPayload } from "@acpp/policy";
 import {
   loadHostedOpenApi,
@@ -246,6 +250,113 @@ export function createApiServer(options: ApiServerOptions = {}) {
         });
         return;
       }
+
+      if (req.method === "GET" && path === `/v1/identities/${address}/capabilities`) {
+        const workspaceId = url.searchParams.get("workspaceId");
+        const requesterRaw = url.searchParams.get("requester") ?? address;
+        const subjectRaw = url.searchParams.get("subject") ?? address;
+        if (!workspaceId || !isWorkspaceId(workspaceId)) {
+          sendJson(res, 400, { error: "missing_or_invalid_workspace" });
+          return;
+        }
+        if (!isActorAddress(requesterRaw) || !isActorAddress(subjectRaw)) {
+          sendJson(res, 400, { error: "invalid_requester_or_subject" });
+          return;
+        }
+        if (subjectRaw !== address) {
+          sendJson(res, 400, { error: "subject_must_match_identity" });
+          return;
+        }
+        const actor = registry.workspace.getActor(address);
+        if (!actor || actor.workspaceId !== workspaceId) {
+          sendJson(res, 404, { error: "not_found" });
+          return;
+        }
+        const identity = registry.getIdentity(address);
+        if (!identity) {
+          sendJson(res, 404, { error: "not_found" });
+          return;
+        }
+        const grantRows = grants.listGrants({ workspaceId });
+        const policyGrants = grantRows.map((g) => ({
+          grantId: g.grantId,
+          subject: g.subject,
+          resource: g.resource,
+          action: g.action,
+          expiresAt: g.expiresAt,
+          revokedAt: g.revokedAt,
+          requiresApproval: g.requiresApproval,
+        }));
+        const result = discoverIdentityCapabilities({
+          identity: {
+            address: identity.address,
+            actorType: identity.actorType,
+            displayName: identity.displayName,
+            status: identity.status,
+          },
+          subject: subjectRaw,
+          requester: requesterRaw,
+          grants: policyGrants,
+        });
+        if (!result.ok) {
+          sendJson(res, 403, {
+            error: "discovery_denied",
+            reason: result.reason,
+            discoveryIsNotConsent: true,
+          });
+          return;
+        }
+        sendJson(res, 200, result.discovery);
+        return;
+      }
+    }
+
+    if (req.method === "GET" && path === "/v1/mcp/capabilities") {
+      const workspaceId = url.searchParams.get("workspaceId");
+      const subjectRaw = url.searchParams.get("subject");
+      const connectionId = url.searchParams.get("connectionId");
+      const allowedToolsRaw = url.searchParams.get("allowedTools");
+      if (
+        !workspaceId ||
+        !isWorkspaceId(workspaceId) ||
+        !subjectRaw ||
+        !isActorAddress(subjectRaw) ||
+        !connectionId
+      ) {
+        sendJson(res, 400, { error: "invalid_query" });
+        return;
+      }
+      if (!registry.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      const actor = registry.workspace.getActor(subjectRaw);
+      if (!actor || actor.workspaceId !== workspaceId) {
+        sendJson(res, 404, { error: "subject_not_found" });
+        return;
+      }
+      const connectionAllowedTools = allowedToolsRaw
+        ? allowedToolsRaw.split(",").map((s) => s.trim()).filter(Boolean)
+        : undefined;
+      const grantRows = grants.listGrants({ workspaceId, subject: subjectRaw });
+      const policyGrants = grantRows.map((g) => ({
+        grantId: g.grantId,
+        subject: g.subject,
+        resource: g.resource,
+        action: g.action,
+        expiresAt: g.expiresAt,
+        revokedAt: g.revokedAt,
+        requiresApproval: g.requiresApproval,
+      }));
+      const discovery = discoverMcpToolCapabilities({
+        workspaceId,
+        subject: subjectRaw,
+        connectionId,
+        grants: policyGrants,
+        connectionAllowedTools,
+      });
+      sendJson(res, 200, discovery);
+      return;
     }
 
     if (req.method === "GET" && path === "/v1/signals") {

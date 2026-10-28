@@ -6,6 +6,7 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **P-040** — Authorized capability discovery: `@acpp/discovery` (identity resolution + grant-derived capabilities, MCP permitted-tool discovery), `GET /v1/identities/{address}/capabilities`, live `GET /v1/mcp/capabilities`, and [`docs/protocol/discovery.md`](./protocol/discovery.md). Discovery ≠ consent (PRODUCT §5.2 / §10.4).
 - **P-022** — Documented MCP integration path: `@acpp/mcp` gateway pipeline + security boundary helpers (SSRF-safe endpoints, permitted-tool discovery, result sanitization), OpenAPI sketch routes (`SKETCHED_MCP_HOSTED_PATHS`), and [`docs/protocol/mcp-integration.md`](./protocol/mcp-integration.md). Not an MCP marketplace; execution adapter deferred to P-050.
 - **A-012** — Local dev quickstart with reproducible allow/deny demos: `POST /v1/workspaces`, `@acpp/example-quickstart` (`pnpm quickstart`, `pnpm demo:allow-deny-explicit`), and [`docs/QUICKSTART.md`](./QUICKSTART.md).
 - **A-011** — OpenAPI 3.1 hosted API document (`GET /v1/openapi.json`) and portable protocol JSON Schemas (`GET /v1/protocol/schemas`, `GET /v1/protocol/schemas/{schemaId}`) in `@acpp/schemas`, separate from dashboard UI. See [`docs/protocol/schemas.md`](./protocol/schemas.md).

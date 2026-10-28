@@ -197,6 +197,36 @@
         }
       }
     },
+    "/v1/identities/{address}/capabilities": {
+      "get": {
+        "tags": ["identity", "discovery"],
+        "operationId": "discoverIdentityCapabilities",
+        "summary": "Resolve identity and list policy-permitted capabilities (PRODUCT §7 L2 / §10.4)",
+        "parameters": [
+          { "$ref": "#/components/parameters/actorAddress" },
+          { "$ref": "#/components/parameters/workspaceIdQuery" },
+          {
+            "name": "requester",
+            "in": "query",
+            "required": false,
+            "description": "Actor requesting discovery; defaults to the identity address (self-discovery).",
+            "schema": { "$ref": "#/components/schemas/ActorAddress" }
+          },
+          {
+            "name": "subject",
+            "in": "query",
+            "required": false,
+            "description": "Must match the identity address; capabilities are listed for this subject.",
+            "schema": { "$ref": "#/components/schemas/ActorAddress" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Resolved identity and permitted capabilities only; discovery ≠ consent" },
+          "403": { "description": "Discovery denied (e.g. missing capabilities:read for cross-actor lookup)" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
     "/v1/identities/{address}/keys/rotate": {
       "post": {
         "tags": ["identity"],
@@ -586,10 +616,9 @@
     },
     "/v1/mcp/capabilities": {
       "get": {
-        "tags": ["mcp"],
+        "tags": ["mcp", "discovery"],
         "operationId": "listPermittedMcpCapabilities",
-        "summary": "Authorized MCP tool discovery for calling actor (sketch)",
-        "x-acpp-implementation-status": "sketch",
+        "summary": "Authorized MCP tool discovery for calling actor (PRODUCT §10.4)",
         "parameters": [
           { "$ref": "#/components/parameters/workspaceIdQuery" },
           {

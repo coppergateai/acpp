@@ -46,7 +46,7 @@ Maps to PRODUCT.md **§22 Phase 2**. Do not pull these ahead of Phase 1 Open row
 
 | Status | ID | Title | Notes |
 | --- | --- | --- | --- |
-| Open | P-040 | Capability discovery (authorized) | PRODUCT §7 L2 / §10.4 — resolve identity + permitted capabilities only; discovery ≠ consent |
+| Done | P-040 | Capability discovery (authorized) | PRODUCT §7 L2 / §10.4 — resolve identity + permitted capabilities only; discovery ≠ consent |
 | Open | SEC-020 | Bounded delegation (no privilege escalation) | PRODUCT §9.3 — delegator≥delegate; no nested escalation; expiration + revoke |
 | Open | A-020 | SDK quality pass (sign/verify/signals/authz/receipts) | PRODUCT §17.2 — helpers must not auto-approve protected ops |
 | Open | P-050 | Second connector or hardened MCP adapter | PRODUCT §22 Phase 2 — expand beyond GitHub without sprawl |

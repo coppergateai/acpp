@@ -68,6 +68,7 @@ export const DOCUMENTED_HOSTED_PATHS = [
   "/v1/workspaces",
   "/v1/workspaces/{workspaceId}/identities",
   "/v1/identities/{address}",
+  "/v1/identities/{address}/capabilities",
   "/v1/identities/{address}/keys/rotate",
   "/v1/identities/{address}/suspend",
   "/v1/signals",
@@ -84,6 +85,7 @@ export const DOCUMENTED_HOSTED_PATHS = [
   "/v1/workspaces/{workspaceId}/connections/github",
   "/v1/workspaces/{workspaceId}/connections",
   "/v1/github/actions/execute",
+  "/v1/mcp/capabilities",
   "/v1/demo/wedge-revoke-proof",
 ] as const;
 
@@ -93,6 +95,5 @@ export const DOCUMENTED_HOSTED_PATHS = [
  */
 export const SKETCHED_MCP_HOSTED_PATHS = [
   "/v1/workspaces/{workspaceId}/connections/mcp",
-  "/v1/mcp/capabilities",
   "/v1/mcp/tools/invoke",
 ] as const;
