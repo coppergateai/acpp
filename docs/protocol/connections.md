@@ -39,6 +39,14 @@ Flow: tenant-scoped grant check (`gateProtectedAction`) → resolve credential b
 - Agents never receive connection tokens; only the gateway resolves credentials after authorization.
 - One GitHub connection per workspace in Phase 1 (second connect returns `409`).
 
-## MCP path (documented sketch)
+## MCP connector (P-050)
 
-GitHub is the first production connector. The MCP gateway follows the same connect-once / grant-per-agent pattern; HTTP routes and security boundaries are documented in [`mcp-integration.md`](./mcp-integration.md) (`@acpp/mcp`, OpenAPI sketch paths). Execution ships in Phase 2 (P-050).
+The MCP gateway follows the same connect-once / grant-per-agent pattern as GitHub.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/v1/workspaces/{workspaceId}/connections/mcp` | Register one MCP server per workspace (`serverUrl`, `allowedTools`, `accessToken`) |
+| `GET` | `/v1/mcp/capabilities` | Permitted tools for a subject (uses stored connection allowlist) |
+| `POST` | `/v1/mcp/tools/invoke` | Policy gate + MCP JSON-RPC `tools/call` |
+
+Resource id for grants: `mcp:connection:{connectionId}:tool:{toolName}` with action `invoke`. See [`mcp-integration.md`](./mcp-integration.md).
