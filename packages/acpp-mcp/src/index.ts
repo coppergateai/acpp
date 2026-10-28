@@ -17,3 +17,6 @@ export {
   type SafeEndpointOptions,
   type SafeEndpointResult,
 } from "./security-boundary.js";
+
+export { executeMcpTool, type ExecuteMcpToolDeps, type ExecuteMcpToolOutcome } from "./execute.js";
+export { performMcpToolCall, type McpHttpClient, type McpToolCallResult } from "./http.js";
