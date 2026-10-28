@@ -6,6 +6,7 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **P-021** — `ConnectionCredentialReference` rotation (`POST …/connections/github/rotate`), `ExecutionStore` lifecycle states for protected GitHub execution (`@acpp/db` + `@acpp/core`), transport `outcome_unknown` in `@acpp/github`, idempotent execute with `no_blind_retry` on `@acpp/api`, and receipt-safe outcome mapping in `@acpp/receipts`. See [`docs/protocol/connections.md`](./protocol/connections.md).
 - **P-020** — GitHub connector: workspace connect-once (`ConnectionStore`), credential isolation via refs, real GitHub HTTP for `repos.metadata.read` and `issues.comment` in `@acpp/github`, and gated `POST /v1/github/actions/execute` plus connection routes on `@acpp/api`. See [`docs/protocol/connections.md`](./protocol/connections.md).
 - **SEC-011** — Deny-by-default authorization with required `workspaceId` on evaluate/execute/list/revoke, tenant-scoped grant evaluation in `GrantStore`, self-grant prevention via `grantedBy`, and cross-tenant isolation tests on `@acpp/db` and `@acpp/api`. See [`docs/protocol/authz.md`](./protocol/authz.md).
 - **SEC-010** — `PermissionGrant` create/list/revoke with expiration, deterministic `POST /v1/authorization/evaluate`, approval-bound `POST /v1/authorization/execute` via `gateProtectedAction` in `@acpp/policy`, in-memory `GrantStore` in `@acpp/db`, and grant HTTP routes on `@acpp/api`. See [`docs/protocol/authz.md`](./protocol/authz.md).
