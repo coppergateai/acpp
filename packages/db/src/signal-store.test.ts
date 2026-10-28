@@ -15,6 +15,7 @@ function signedEnvelope(
   keyId: string,
   sender: string,
   signalId: string,
+  overrides: Partial<SignalEnvelope> = {},
 ): SignalEnvelope {
   const partial: SignalEnvelope = {
     protocolVersion: ACPP_PROTOCOL_VERSION,
@@ -26,6 +27,7 @@ function signedEnvelope(
     contentType: "application/json",
     payload: { n: 1 },
     auth: { alg: "Ed25519", keyId, signature: "" },
+    ...overrides,
   };
   const signature = signMessage(signingMessage(partial), material.privateKey);
   return {
@@ -62,6 +64,8 @@ describe("SignalStore", () => {
     if (result.ok) {
       assert.equal(result.created, true);
       assert.equal(result.delivery.status, "accepted");
+      assert.equal(result.delivery.ackState, "acknowledged");
+      assert.equal(result.delivery.executionState, "not_started");
       assert.equal(result.signal.workspaceId, ws.workspaceId);
     }
     assert.ok(store.getSignal("sig_accept_01"));
@@ -128,5 +132,64 @@ describe("SignalStore", () => {
       assert.equal(result.reason, "invalid_signature");
     }
     assert.equal(store.getSignal("sig_bad_sig"), undefined);
+  });
+
+  it("indexes correlated request/response and rejects unknown causation", () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "corr",
+      slug: "corr",
+      displayName: "Corr",
+    });
+    const material = generateEd25519KeyPair();
+    const { identity, key } = registry.registerIdentity({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      actorId: "01JCOR",
+      displayName: "Sender",
+      publicKey: material.publicKey,
+    });
+    const store = new SignalStore(registry);
+    const threadId = "thread_corr_01";
+    const request = signedEnvelope(
+      material,
+      key.keyId,
+      identity.address,
+      "sig_req_corr01",
+      { type: "request", correlationId: threadId },
+    );
+    assert.equal(store.submitSignal(request).ok, true);
+    const badCausation = signedEnvelope(
+      material,
+      key.keyId,
+      identity.address,
+      "sig_rsp_bad01",
+      {
+        type: "response",
+        correlationId: threadId,
+        causationId: "sig_missing_9",
+      },
+    );
+    const unknown = store.submitSignal(badCausation);
+    assert.equal(unknown.ok, false);
+    if (!unknown.ok) {
+      assert.equal(unknown.reason, "unknown_causation");
+    }
+    const response = signedEnvelope(
+      material,
+      key.keyId,
+      identity.address,
+      "sig_rsp_corr01",
+      {
+        type: "response",
+        correlationId: threadId,
+        causationId: "sig_req_corr01",
+      },
+    );
+    assert.equal(store.submitSignal(response).ok, true);
+    const thread = store.listSignalsByCorrelationId(threadId);
+    assert.equal(thread.length, 2);
+    assert.equal(thread[0]!.signalId, "sig_req_corr01");
+    assert.equal(thread[1]!.signalId, "sig_rsp_corr01");
   });
 });
