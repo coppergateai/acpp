@@ -4,7 +4,7 @@ import { ACPP_PROTOCOL_VERSION, type SignalEnvelope } from "@acpp/core";
 import { generateEd25519KeyPair, signMessage } from "@acpp/identity";
 import { signingMessage } from "@acpp/signals";
 import { IdentityRegistry } from "@acpp/db";
-import { createApiServer } from "./index.ts";
+import { createApiServer, type ApiServerOptions } from "./index.ts";
 
 function signedSignal(
   material: ReturnType<typeof generateEd25519KeyPair>,
@@ -32,8 +32,9 @@ function signedSignal(
 async function withServer(
   registry: IdentityRegistry,
   fn: (port: number) => Promise<void>,
+  options: Omit<ApiServerOptions, "registry"> = {},
 ): Promise<void> {
-  const server = createApiServer({ registry });
+  const server = createApiServer({ registry, ...options });
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", () => resolve());
   });
@@ -414,5 +415,164 @@ describe("@acpp/api", () => {
       });
       assert.equal(wrongTenant.status, 403);
     });
+  });
+
+  it("connects GitHub once and executes scoped actions for two agents (P-020)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "github-wedge",
+      slug: "github-wedge",
+      displayName: "GitHub wedge",
+    });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner",
+      displayName: "Owner",
+    });
+    const reader = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "reader",
+      displayName: "Reader agent",
+    });
+    const commenter = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "commenter",
+      displayName: "Commenter agent",
+    });
+    const repo = "coppergateai/acpp";
+    const resource = `github:repo:${repo}`;
+
+    const mockFetch: typeof fetch = async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/repos/coppergateai/acpp") && (!init?.method || init.method === "GET")) {
+        return new Response(JSON.stringify({ full_name: repo }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.includes("/issues/1/comments") && init?.method === "POST") {
+        return new Response(JSON.stringify({ id: 1, html_url: "https://github.com/c/1" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("not found", { status: 404 });
+    };
+
+    await withServer(
+      registry,
+      async (port) => {
+        const base = `http://127.0.0.1:${port}`;
+
+        const connect = await fetch(`${base}/v1/workspaces/${ws.workspaceId}/connections/github`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            installationId: "999",
+            accessToken: "ghs_super_secret",
+          }),
+        });
+        assert.equal(connect.status, 201);
+        const connected = (await connect.json()) as {
+          connection: { connectionId: string; credentialRef: string };
+        };
+        const connectionId = connected.connection.connectionId;
+        assert.equal(
+          JSON.stringify(connected).includes("ghs_super_secret"),
+          false,
+        );
+
+        const list = await fetch(`${base}/v1/workspaces/${ws.workspaceId}/connections`);
+        const listBody = (await list.json()) as { connections: unknown[] };
+        assert.equal(listBody.connections.length, 1);
+        assert.equal(JSON.stringify(listBody).includes("ghs_super_secret"), false);
+
+        const duplicate = await fetch(
+          `${base}/v1/workspaces/${ws.workspaceId}/connections/github`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              installationId: "1000",
+              accessToken: "other",
+            }),
+          },
+        );
+        assert.equal(duplicate.status, 409);
+
+        for (const [subject, action] of [
+          [reader.address, "repos.metadata.read"],
+          [commenter.address, "issues.comment"],
+        ] as const) {
+          const grantRes = await fetch(`${base}/v1/grants`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              workspaceId: ws.workspaceId,
+              grantedBy: owner.address,
+              subject,
+              resource,
+              action,
+            }),
+          });
+          assert.equal(grantRes.status, 201);
+        }
+
+        const readerDeniedComment = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: reader.address,
+            repo,
+            action: "issues.comment",
+            payload: { issueNumber: 1, body: "nope" },
+          }),
+        });
+        assert.equal(readerDeniedComment.status, 403);
+
+        const readOk = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: reader.address,
+            repo,
+            action: "repos.metadata.read",
+            payload: {},
+          }),
+        });
+        assert.equal(readOk.status, 200);
+        const readBody = (await readOk.json()) as {
+          execution: { ok: boolean; externalRef: string };
+        };
+        assert.equal(readBody.execution.ok, true);
+        assert.equal(readBody.execution.externalRef, `github:repo:${repo}`);
+
+        const commentOk = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: commenter.address,
+            repo,
+            action: "issues.comment",
+            payload: { issueNumber: 1, body: "from acpp" },
+          }),
+        });
+        assert.equal(commentOk.status, 200);
+        const commentBody = (await commentOk.json()) as {
+          execution: { ok: boolean };
+        };
+        assert.equal(commentBody.execution.ok, true);
+      },
+      { githubHttp: { fetch: mockFetch } },
+    );
   });
 });
