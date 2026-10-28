@@ -27,7 +27,10 @@ import {
   type GithubProtectedAction,
 } from "@acpp/github";
 import { hashActionPayload } from "@acpp/policy";
+import { developerApiCatalog } from "./developer-api.js";
 import { runWedgeRevokeProof } from "./wedge-proof.js";
+
+export { developerApiCatalog, DEVELOPER_API_ROUTES } from "./developer-api.js";
 
 export type ApiServerOptions = {
   registry?: IdentityRegistry;
@@ -67,7 +70,8 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
 }
 
 /**
- * HTTP API — health, identity (P-010), signals (S-010), grants/authz (SEC-010). Broader Developer API: A-010.
+ * HTTP Developer API — catalog (A-010), workspaces, identity (P-010), signals (S-010),
+ * grants/authz (SEC-010), connections (P-020), receipts (P-030).
  */
 export function createApiServer(options: ApiServerOptions = {}) {
   const registry = options.registry ?? new IdentityRegistry();
@@ -85,6 +89,53 @@ export function createApiServer(options: ApiServerOptions = {}) {
 
     if (path === "/health" || path === "/ready") {
       sendJson(res, 200, { ok: true, protocolVersion: ACPP_PROTOCOL_VERSION });
+      return;
+    }
+
+    if (req.method === "GET" && path === "/v1") {
+      sendJson(res, 200, developerApiCatalog());
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/workspaces") {
+      const body = (await readJsonBody(req)) as {
+        id?: string;
+        slug?: string;
+        displayName?: string;
+      };
+      if (!body.id || !body.slug || !body.displayName) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      try {
+        const workspace = registry.workspace.createWorkspace({
+          id: body.id,
+          slug: body.slug,
+          displayName: body.displayName,
+        });
+        sendJson(res, 201, { workspace });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "workspace_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    const workspaceGetMatch = path.match(/^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)$/);
+    if (req.method === "GET" && workspaceGetMatch) {
+      const workspaceIdRaw = workspaceGetMatch[1];
+      if (!workspaceIdRaw || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspace = registry.workspace.getWorkspace(workspaceIdRaw);
+      if (!workspace) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      sendJson(res, 200, { workspace });
       return;
     }
 
