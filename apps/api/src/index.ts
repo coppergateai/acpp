@@ -15,10 +15,12 @@ import {
   SignalStore,
   isWorkspaceId,
   type StoredGithubConnection,
+  type StoredMcpConnection,
 } from "@acpp/db";
 import {
   executionOutcomeFromGate,
   executionOutcomeFromGithub,
+  executionOutcomeFromMcp,
 } from "@acpp/receipts";
 import {
   executeGithubAction,
@@ -30,6 +32,12 @@ import {
   discoverIdentityCapabilities,
   discoverMcpToolCapabilities,
 } from "@acpp/discovery";
+import {
+  assertSafeMcpServerEndpoint,
+  executeMcpTool,
+  mcpResource,
+  type McpHttpClient,
+} from "@acpp/mcp";
 import { hashActionPayload } from "@acpp/policy";
 import {
   loadHostedOpenApi,
@@ -45,15 +53,31 @@ export type ApiServerOptions = {
   connections?: ConnectionStore;
   receipts?: ReceiptStore;
   githubHttp?: GithubHttpClient;
+  mcpHttp?: McpHttpClient;
+  /** Allow localhost MCP URLs at connect/invoke (local dev and tests only). */
+  mcpAllowLocalhost?: boolean;
 };
 
 const GITHUB_ACTIONS = new Set<string>(["issues.comment", "repos.metadata.read"]);
 
 function publicGithubConnection(row: StoredGithubConnection) {
   return {
+    provider: "github" as const,
     connectionId: row.connectionId,
     workspaceId: row.workspaceId,
     installationId: row.installationId,
+    credentialRef: row.credentialRef,
+    createdAt: row.createdAt,
+  };
+}
+
+function publicMcpConnection(row: StoredMcpConnection) {
+  return {
+    provider: "mcp" as const,
+    connectionId: row.connectionId,
+    workspaceId: row.workspaceId,
+    serverUrl: row.serverUrl,
+    allowedTools: row.allowedTools,
     credentialRef: row.credentialRef,
     createdAt: row.createdAt,
   };
@@ -87,6 +111,8 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const receipts =
     options.receipts ?? new ReceiptStore(registry.workspace);
   const githubHttp = options.githubHttp;
+  const mcpHttp = options.mcpHttp;
+  const mcpAllowLocalhost = options.mcpAllowLocalhost ?? false;
 
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -335,9 +361,12 @@ export function createApiServer(options: ApiServerOptions = {}) {
         sendJson(res, 404, { error: "subject_not_found" });
         return;
       }
-      const connectionAllowedTools = allowedToolsRaw
-        ? allowedToolsRaw.split(",").map((s) => s.trim()).filter(Boolean)
-        : undefined;
+      const storedMcp = connections.getMcpConnection(connectionId, workspaceId);
+      const connectionAllowedTools =
+        storedMcp?.allowedTools ??
+        (allowedToolsRaw
+          ? allowedToolsRaw.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined);
       const grantRows = grants.listGrants({ workspaceId, subject: subjectRaw });
       const policyGrants = grantRows.map((g) => ({
         grantId: g.grantId,
@@ -853,10 +882,200 @@ export function createApiServer(options: ApiServerOptions = {}) {
         sendJson(res, 404, { error: "workspace_not_found" });
         return;
       }
-      const rows = connections.listGithubConnections(workspaceId);
+      const rows = connections.listConnections(workspaceId);
       sendJson(res, 200, {
-        connections: rows.map(publicGithubConnection),
+        connections: rows.map((row) =>
+          row.provider === "github"
+            ? publicGithubConnection(row)
+            : publicMcpConnection(row),
+        ),
       });
+      return;
+    }
+
+    const workspaceMcpConnectMatch = path.match(
+      /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/connections\/mcp$/,
+    );
+    if (req.method === "POST" && workspaceMcpConnectMatch) {
+      const workspaceIdRaw = workspaceMcpConnectMatch[1];
+      if (!workspaceIdRaw || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw;
+      const body = (await readJsonBody(req)) as {
+        serverUrl?: string;
+        allowedTools?: string[];
+        accessToken?: string;
+      };
+      if (
+        !body.serverUrl ||
+        !body.accessToken ||
+        !Array.isArray(body.allowedTools) ||
+        body.allowedTools.length === 0
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      const endpointCheck = assertSafeMcpServerEndpoint(body.serverUrl, {
+        allowLocalhost: mcpAllowLocalhost,
+      });
+      if (!endpointCheck.ok) {
+        sendJson(res, 400, {
+          error: "unsafe_mcp_endpoint",
+          reason: endpointCheck.reason,
+        });
+        return;
+      }
+      if (!connections.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      try {
+        const connection = connections.connectMcp({
+          workspaceId,
+          serverUrl: body.serverUrl,
+          allowedTools: body.allowedTools,
+          accessToken: body.accessToken,
+        });
+        sendJson(res, 201, {
+          connection: publicMcpConnection(connection),
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes("already exists") ? 409 : 400;
+        sendJson(res, status, { error: "connect_failed", message });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/mcp/tools/invoke") {
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        connectionId?: string;
+        subject?: string;
+        toolName?: string;
+        arguments?: Record<string, unknown>;
+        at?: string;
+        approvalId?: string;
+        signalId?: string;
+        recordReceipt?: boolean;
+      };
+      if (
+        !body.workspaceId ||
+        !body.connectionId ||
+        !body.subject ||
+        !body.toolName ||
+        !isWorkspaceId(body.workspaceId) ||
+        !isActorAddress(body.subject)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      if (body.arguments !== undefined && typeof body.arguments !== "object") {
+        sendJson(res, 400, { error: "invalid_arguments" });
+        return;
+      }
+      if (body.signalId) {
+        const linked = signals.getSignal(body.signalId);
+        if (!linked || linked.workspaceId !== body.workspaceId) {
+          sendJson(res, 400, { error: "invalid_signal_link" });
+          return;
+        }
+      }
+      const connection = connections.getMcpConnection(
+        body.connectionId,
+        body.workspaceId,
+      );
+      if (!connection) {
+        sendJson(res, 404, { error: "connection_not_found" });
+        return;
+      }
+      const endpointCheck = assertSafeMcpServerEndpoint(connection.serverUrl, {
+        allowLocalhost: mcpAllowLocalhost,
+      });
+      if (!endpointCheck.ok) {
+        sendJson(res, 400, {
+          error: "unsafe_mcp_endpoint",
+          reason: endpointCheck.reason,
+        });
+        return;
+      }
+      const resource = mcpResource(body.connectionId, body.toolName);
+      const action = "invoke";
+      try {
+        const gate = grants.gateProtectedAction(
+          {
+            workspaceId: body.workspaceId,
+            subject: body.subject,
+            resource,
+            action,
+            at: body.at,
+          },
+          { payloadHash: hashActionPayload(body.arguments ?? {}) },
+          body.approvalId,
+        );
+        if (!gate.allowed) {
+          let receipt;
+          if (body.signalId && (body.recordReceipt ?? true)) {
+            try {
+              receipt = receipts.recordReceipt({
+                workspaceId: body.workspaceId,
+                signalId: body.signalId,
+                sender: body.subject,
+                verificationOk: true,
+                decision: gate.decision,
+                approvalId: body.approvalId,
+                execution: executionOutcomeFromGate(gate),
+              });
+            } catch {
+              /* receipt may already exist on retry */
+            }
+          }
+          sendJson(res, 403, { gate, receipt });
+          return;
+        }
+        const token = connections.resolveCredential(connection.credentialRef);
+        const execution = await executeMcpTool(
+          {
+            subject: body.subject,
+            workspaceId: body.workspaceId,
+            connectionId: body.connectionId,
+            toolName: body.toolName,
+            arguments: body.arguments,
+          },
+          true,
+          {
+            serverUrl: connection.serverUrl,
+            connectionAllowedTools: connection.allowedTools,
+            token,
+            http: mcpHttp,
+          },
+        );
+        const status = execution.ok ? 200 : 502;
+        let receipt;
+        if (body.signalId && (body.recordReceipt ?? true)) {
+          try {
+            receipt = receipts.recordReceipt({
+              workspaceId: body.workspaceId,
+              signalId: body.signalId,
+              sender: body.subject,
+              verificationOk: true,
+              decision: gate.decision,
+              approvalId: body.approvalId,
+              execution: executionOutcomeFromMcp(execution),
+            });
+          } catch {
+            /* ignore duplicate receipt */
+          }
+        }
+        sendJson(res, status, { gate, execution, receipt });
+      } catch (err) {
+        sendJson(res, 403, {
+          error: "tenant_boundary",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       return;
     }
 
