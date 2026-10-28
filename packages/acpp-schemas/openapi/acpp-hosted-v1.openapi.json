@@ -584,8 +584,7 @@
       "post": {
         "tags": ["connections", "mcp"],
         "operationId": "connectMcpServer",
-        "summary": "Register workspace MCP server connection (sketch)",
-        "x-acpp-implementation-status": "sketch",
+        "summary": "Register workspace MCP server connection once per workspace",
         "parameters": [{ "$ref": "#/components/parameters/workspaceId" }],
         "requestBody": {
           "required": true,
@@ -593,21 +592,22 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["serverUrl", "allowedTools", "credentialRef"],
+                "required": ["serverUrl", "allowedTools", "accessToken"],
                 "properties": {
                   "serverUrl": { "type": "string", "format": "uri" },
                   "allowedTools": {
                     "type": "array",
-                    "items": { "type": "string" }
+                    "items": { "type": "string" },
+                    "minItems": 1
                   },
-                  "credentialRef": { "type": "string" }
+                  "accessToken": { "type": "string" }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Connection registered (future)" },
+          "201": { "description": "Connection registered" },
           "400": { "$ref": "#/components/responses/BadRequest" },
           "404": { "$ref": "#/components/responses/NotFound" },
           "409": { "$ref": "#/components/responses/Conflict" }
@@ -639,8 +639,7 @@
       "post": {
         "tags": ["mcp"],
         "operationId": "invokeMcpTool",
-        "summary": "Policy-gated MCP tool invocation (sketch)",
-        "x-acpp-implementation-status": "sketch",
+        "summary": "Policy-gated MCP tool invocation",
         "requestBody": {
           "required": true,
           "content": {
