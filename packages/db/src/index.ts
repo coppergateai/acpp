@@ -73,3 +73,9 @@ export {
   type ConnectGithubInput,
   type StoredGithubConnection,
 } from "./connection-store.js";
+
+export {
+  ReceiptStore,
+  type RecordReceiptInput,
+  type StoredReceipt,
+} from "./receipt-store.js";
