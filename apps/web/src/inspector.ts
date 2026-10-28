@@ -1,4 +1,5 @@
 import type { ReceiptChainStep } from "@acpp/receipts";
+import type { DashboardNavItem } from "./shell.js";
 
 export type WedgeProofPayload = {
   workspaceId: string;
@@ -60,19 +61,16 @@ export function renderReceiptInspector(proof: WedgeProofPayload): string {
 
 export function renderDashboardPage(options: {
   title: string;
-  nav: readonly string[];
+  nav: readonly DashboardNavItem[];
   body: string;
   apiBase: string;
+  activePath?: string;
 }): string {
+  const active = options.activePath ?? "/";
   const nav = options.nav
     .map((n) => {
-      const href =
-        n === "Overview"
-          ? "/"
-          : n === "Receipts"
-            ? "/receipts"
-            : `#${n.toLowerCase()}`;
-      return `<li><a href="${href}">${escapeHtml(n)}</a></li>`;
+      const current = n.path === active ? ' aria-current="page"' : "";
+      return `<li><a href="${escapeHtml(n.path)}"${current}>${escapeHtml(n.label)}</a></li>`;
     })
     .join("");
   return `<!doctype html>
@@ -83,6 +81,12 @@ export function renderDashboardPage(options: {
   <style>
     body { font-family: system-ui, sans-serif; max-width: 52rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
     nav ul { display: flex; flex-wrap: wrap; gap: 0.75rem; list-style: none; padding: 0; }
+    nav a[aria-current="page"] { font-weight: 600; text-decoration: underline; }
+    .ia-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); }
+    .ia-card { border: 1px solid #ccc; border-radius: 6px; padding: 0.75rem 1rem; }
+    .onboarding-step.step-done { border-left: 4px solid #0a6; padding-left: 0.75rem; }
+    .onboarding-log { background: #f6f6f6; padding: 0.75rem; overflow-x: auto; font-size: 0.9rem; }
+    .ttfv-checklist { padding-left: 1.25rem; }
     .chain { list-style: decimal; padding-left: 1.5rem; }
     .chain-step.ok { color: #0a6; }
     .chain-step.deny { color: #c30; }
