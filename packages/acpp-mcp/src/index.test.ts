@@ -4,9 +4,11 @@ import {
   MCP_GATEWAY_PIPELINE,
   assertSafeMcpServerEndpoint,
   evaluateMcpGatewayPrecheck,
+  executeMcpTool,
   filterPermittedMcpTools,
   isToolOnConnectionAllowlist,
   mcpResource,
+  performMcpToolCall,
   sanitizeMcpToolResult,
 } from "./index.ts";
 
@@ -105,5 +107,89 @@ describe("@acpp/mcp security boundary", () => {
     });
     assert.equal(clean.content, "ok");
     assert.equal("accessToken" in clean, false);
+  });
+});
+
+describe("@acpp/mcp execution (P-050)", () => {
+  it("performs JSON-RPC tools/call and sanitizes successful results", async () => {
+    const mockFetch: typeof fetch = async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as {
+        method: string;
+        params: { name: string };
+      };
+      assert.equal(body.method, "tools/call");
+      assert.equal(body.params.name, "search_docs");
+      return new Response(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          result: { structuredContent: { hits: 2 }, accessToken: "leak" },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    };
+
+    const raw = await performMcpToolCall(
+      "https://tools.example.com/mcp",
+      "search_docs",
+      { query: "runbook" },
+      "tok",
+      { fetch: mockFetch },
+    );
+    assert.equal(raw.ok, true);
+
+    const executed = await executeMcpTool(
+      {
+        subject: "acpp:agent:01JTEST",
+        workspaceId: "ws_test",
+        connectionId: "conn_x",
+        toolName: "search_docs",
+        arguments: { query: "runbook" },
+      },
+      true,
+      {
+        serverUrl: "https://tools.example.com/mcp",
+        connectionAllowedTools: ["search_docs"],
+        token: "tok",
+        http: { fetch: mockFetch },
+      },
+    );
+    assert.equal(executed.ok, true);
+    assert.equal(executed.result?.hits, 2);
+    assert.equal("accessToken" in (executed.result ?? {}), false);
+  });
+
+  it("denies when policy flag is false or tool is off allowlist", async () => {
+    const denied = await executeMcpTool(
+      {
+        subject: "acpp:agent:01JTEST",
+        workspaceId: "ws_test",
+        connectionId: "conn_x",
+        toolName: "search_docs",
+      },
+      false,
+      {
+        serverUrl: "https://tools.example.com/mcp",
+        connectionAllowedTools: ["search_docs"],
+        token: "tok",
+      },
+    );
+    assert.equal(denied.error, "unauthorized");
+
+    const notListed = await executeMcpTool(
+      {
+        subject: "acpp:agent:01JTEST",
+        workspaceId: "ws_test",
+        connectionId: "conn_x",
+        toolName: "run_shell",
+      },
+      true,
+      {
+        serverUrl: "https://tools.example.com/mcp",
+        connectionAllowedTools: ["search_docs"],
+        token: "tok",
+      },
+    );
+    assert.equal(notListed.error, "tool_not_allowed");
   });
 });
