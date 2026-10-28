@@ -208,6 +208,12 @@ describe("@acpp/api", () => {
       slug: "authz-api",
       displayName: "Authz API",
     });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner",
+      displayName: "Owner",
+    });
     const material = generateEd25519KeyPair();
     await withServer(registry, async (port) => {
       const base = `http://127.0.0.1:${port}`;
@@ -234,6 +240,7 @@ describe("@acpp/api", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           workspaceId: ws.workspaceId,
+          grantedBy: owner.address,
           subject,
           resource,
           action,
@@ -248,7 +255,7 @@ describe("@acpp/api", () => {
       const evaluate = await fetch(`${base}/v1/authorization/evaluate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ subject, resource, action }),
+        body: JSON.stringify({ workspaceId: ws.workspaceId, subject, resource, action }),
       });
       const decision = (await evaluate.json()) as {
         decision: { allow: boolean; requiresApproval: boolean };
@@ -260,7 +267,13 @@ describe("@acpp/api", () => {
       const blocked = await fetch(`${base}/v1/authorization/execute`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ subject, resource, action, payload }),
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          subject,
+          resource,
+          action,
+          payload,
+        }),
       });
       assert.equal(blocked.status, 403);
       const blockedBody = (await blocked.json()) as {
@@ -289,6 +302,7 @@ describe("@acpp/api", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          workspaceId: ws.workspaceId,
           subject,
           resource,
           action,
@@ -302,17 +316,103 @@ describe("@acpp/api", () => {
 
       const revoke = await fetch(
         `${base}/v1/grants/${grantBody.grant.grantId}/revoke`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ workspaceId: ws.workspaceId }),
+        },
       );
       assert.equal(revoke.status, 200);
 
       const denied = await fetch(`${base}/v1/authorization/evaluate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ subject, resource, action }),
+        body: JSON.stringify({ workspaceId: ws.workspaceId, subject, resource, action }),
       });
       const afterRevoke = (await denied.json()) as { decision: { allow: boolean } };
       assert.equal(afterRevoke.decision.allow, false);
+    });
+  });
+
+  it("denies authorization without workspace grant and blocks self-grant (SEC-011)", async () => {
+    const registry = new IdentityRegistry();
+    const wsA = registry.workspace.createWorkspace({
+      id: "sec-a",
+      slug: "sec-a",
+      displayName: "Sec A",
+    });
+    const wsB = registry.workspace.createWorkspace({
+      id: "sec-b",
+      slug: "sec-b",
+      displayName: "Sec B",
+    });
+    const ownerA = registry.workspace.registerActor({
+      workspaceId: wsA.workspaceId,
+      actorType: "human",
+      id: "owner-a",
+      displayName: "Owner A",
+    });
+    const agentA = registry.workspace.registerActor({
+      workspaceId: wsA.workspaceId,
+      actorType: "agent",
+      id: "agent-a",
+      displayName: "Agent A",
+    });
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const resource = "github:repo:org/repo";
+      const action = "issues.comment";
+
+      const noGrant = await fetch(`${base}/v1/authorization/evaluate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: wsA.workspaceId,
+          subject: agentA.address,
+          resource,
+          action,
+        }),
+      });
+      assert.equal(noGrant.status, 200);
+      const denyBody = (await noGrant.json()) as { decision: { allow: boolean } };
+      assert.equal(denyBody.decision.allow, false);
+
+      const selfGrant = await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: wsA.workspaceId,
+          grantedBy: agentA.address,
+          subject: agentA.address,
+          resource,
+          action,
+        }),
+      });
+      assert.equal(selfGrant.status, 409);
+
+      await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: wsA.workspaceId,
+          grantedBy: ownerA.address,
+          subject: agentA.address,
+          resource,
+          action,
+        }),
+      });
+
+      const wrongTenant = await fetch(`${base}/v1/authorization/evaluate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: wsB.workspaceId,
+          subject: agentA.address,
+          resource,
+          action,
+        }),
+      });
+      assert.equal(wrongTenant.status, 403);
     });
   });
 });
