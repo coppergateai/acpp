@@ -44,5 +44,5 @@ A workspace owner or controller with no matching grant is denied on protected op
 
 ## API / persistence status
 
-- **Now:** typed model + in-memory `WorkspaceStore` with tenant isolation tests.
-- **Next (P-010 / S-010):** PostgreSQL schema and HTTP registration APIs.
+- **Now:** typed model + in-memory `WorkspaceStore` and `IdentityRegistry` (`@acpp/db`) with tenant isolation tests; identity HTTP routes on `@acpp/api` (P-010).
+- **Next (S-010):** PostgreSQL schema for signals and durable persistence.
