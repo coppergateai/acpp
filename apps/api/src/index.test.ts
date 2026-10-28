@@ -200,4 +200,119 @@ describe("@acpp/api", () => {
       assert.equal(body.signals.length, 1);
     });
   });
+
+  it("creates grant, evaluates, revokes, and gates approval-bound execution", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "authz-api",
+      slug: "authz-api",
+      displayName: "Authz API",
+    });
+    const material = generateEd25519KeyPair();
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const reg = await fetch(`${base}/v1/workspaces/${ws.workspaceId}/identities`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          actorType: "agent",
+          actorId: "01JAUTH",
+          displayName: "Authz agent",
+          publicKey: material.publicKey,
+        }),
+      });
+      assert.equal(reg.status, 201);
+      const registered = (await reg.json()) as {
+        identity: { address: string };
+      };
+      const subject = registered.identity.address;
+      const resource = "github:repo:org/repo";
+      const action = "issues.comment";
+
+      const createGrant = await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          subject,
+          resource,
+          action,
+          requiresApproval: true,
+        }),
+      });
+      assert.equal(createGrant.status, 201);
+      const grantBody = (await createGrant.json()) as {
+        grant: { grantId: string };
+      };
+
+      const evaluate = await fetch(`${base}/v1/authorization/evaluate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subject, resource, action }),
+      });
+      const decision = (await evaluate.json()) as {
+        decision: { allow: boolean; requiresApproval: boolean };
+      };
+      assert.equal(decision.decision.allow, true);
+      assert.equal(decision.decision.requiresApproval, true);
+
+      const payload = { body: "ship it" };
+      const blocked = await fetch(`${base}/v1/authorization/execute`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subject, resource, action, payload }),
+      });
+      assert.equal(blocked.status, 403);
+      const blockedBody = (await blocked.json()) as {
+        gate: { reason: string };
+      };
+      assert.equal(blockedBody.gate.reason, "approval_required");
+
+      const approval = await fetch(`${base}/v1/approvals`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          grantId: grantBody.grant.grantId,
+          subject,
+          resource,
+          action,
+          payload,
+          approved: true,
+        }),
+      });
+      assert.equal(approval.status, 201);
+      const approvalBody = (await approval.json()) as {
+        approval: { approvalId: string };
+      };
+
+      const execute = await fetch(`${base}/v1/authorization/execute`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          subject,
+          resource,
+          action,
+          payload,
+          approvalId: approvalBody.approval.approvalId,
+        }),
+      });
+      assert.equal(execute.status, 200);
+      const gate = (await execute.json()) as { gate: { allowed: boolean } };
+      assert.equal(gate.gate.allowed, true);
+
+      const revoke = await fetch(
+        `${base}/v1/grants/${grantBody.grant.grantId}/revoke`,
+        { method: "POST" },
+      );
+      assert.equal(revoke.status, 200);
+
+      const denied = await fetch(`${base}/v1/authorization/evaluate`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ subject, resource, action }),
+      });
+      const afterRevoke = (await denied.json()) as { decision: { allow: boolean } };
+      assert.equal(afterRevoke.decision.allow, false);
+    });
+  });
 });
