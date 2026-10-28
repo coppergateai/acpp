@@ -1,5 +1,10 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { ACPP_PROTOCOL_VERSION, isActorAddress, type SignalEnvelope } from "@acpp/core";
+import {
+  ACPP_PROTOCOL_VERSION,
+  isActorAddress,
+  isSignalReferenceId,
+  type SignalEnvelope,
+} from "@acpp/core";
 import { IdentityRegistry, SignalStore, isWorkspaceId } from "@acpp/db";
 
 export type ApiServerOptions = {
@@ -144,6 +149,27 @@ export function createApiServer(options: ApiServerOptions = {}) {
       }
     }
 
+    if (req.method === "GET" && path === "/v1/signals") {
+      const correlationId = url.searchParams.get("correlationId");
+      if (!correlationId) {
+        sendJson(res, 400, { error: "missing_correlation_id_query" });
+        return;
+      }
+      if (!isSignalReferenceId(correlationId)) {
+        sendJson(res, 400, { error: "invalid_correlation_id" });
+        return;
+      }
+      const records = signals.listSignalsByCorrelationId(correlationId);
+      sendJson(res, 200, {
+        correlationId,
+        signals: records.map((signal) => ({
+          signal,
+          delivery: signals.getDelivery(signal.signalId),
+        })),
+      });
+      return;
+    }
+
     const signalMatch = path.match(/^\/v1\/signals\/([A-Za-z0-9_-]{8,128})$/);
     if (req.method === "GET" && signalMatch) {
       const signalId = signalMatch[1]!;
@@ -172,7 +198,8 @@ export function createApiServer(options: ApiServerOptions = {}) {
           result.reason === "invalid_envelope" ||
           result.reason === "invalid_signature" ||
           result.reason === "unknown_key" ||
-          result.reason === "key_not_active"
+          result.reason === "key_not_active" ||
+          result.reason === "unknown_causation"
             ? 400
             : result.reason === "unknown_identity"
               ? 404
