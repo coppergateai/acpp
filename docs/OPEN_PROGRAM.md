@@ -37,7 +37,7 @@ Maps to PRODUCT.md **§13 MVP**, **§22 Phase 1**, and **§23 acceptance**. Prov
 | Done | A-011 | OpenAPI + machine-readable protocol schemas | PRODUCT §13.2 DX / §16 — `@acpp/schemas`, `/v1/openapi.json`, `/v1/protocol/schemas`; `docs/protocol/schemas.md` |
 | Done | A-012 | Local dev + reproducible allow and deny demos | PRODUCT §17.1 — runnable quickstart shows success **and** policy denial |
 | Done | P-022 | Documented MCP integration path | PRODUCT §10 / §13.2 — `@acpp/mcp`, OpenAPI sketch routes, `docs/protocol/mcp-integration.md`; not a marketplace |
-| Open | AG-001 | CI check name honesty for Coppergate auto-accept | Job name `check` must match `CI_REQUIRED_CHECK_NAMES` |
+| Done | AG-001 | CI check name honesty for Coppergate auto-accept | Job name `check` must match `CI_REQUIRED_CHECK_NAMES`; manifest [`ci-required-checks.json`](./ci-required-checks.json) + `pnpm assert:ci-check-names` |
 | Open | AG-002 | Lockfile sync on dependency edits | Any `package.json` change must refresh `pnpm-lock.yaml`; CI `assert:lockfile` + Coppergate delivery refuse `lockfile_out_of_sync` |
 
 ## Phase 2 — Developer platform (later)
