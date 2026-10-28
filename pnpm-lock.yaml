@@ -74,6 +74,34 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  examples/quickstart:
+    dependencies:
+      '@acpp/api':
+        specifier: workspace:*
+        version: link:../../apps/api
+      '@acpp/core':
+        specifier: workspace:*
+        version: link:../../packages/acpp-core
+      '@acpp/identity':
+        specifier: workspace:*
+        version: link:../../packages/acpp-identity
+      '@acpp/signals':
+        specifier: workspace:*
+        version: link:../../packages/acpp-signals
+    devDependencies:
+      '@acpp/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.20.5
+      tsx:
+        specifier: ^4.19.4
+        version: 4.23.15
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
   examples/wedge-github:
     dependencies:
       '@acpp/core':

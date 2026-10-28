@@ -1,0 +1,9 @@
+{
+  "extends": "@acpp/typescript-config/base.json",
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/cli.ts", "src/test-harness.ts"],
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  }
+}
