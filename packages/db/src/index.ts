@@ -1,6 +1,6 @@
 /**
  * Logical persistence model for ACPP (PRODUCT.md §14.4).
- * Drizzle schema + migrations land with P-010 / S-010 Open IDs.
+ * PostgreSQL/Drizzle migrations land with S-010; identity registry is in-memory for P-010.
  */
 export const LOGICAL_ENTITIES = [
   "Workspace",
@@ -44,3 +44,10 @@ export {
   type CreateWorkspaceInput,
   type RegisterActorInput,
 } from "./workspace-store.js";
+
+export {
+  IdentityRegistry,
+  type RegisterIdentityInput,
+  type RotateKeyInput,
+  type VerifyStoredSignatureInput,
+} from "./identity-store.js";
