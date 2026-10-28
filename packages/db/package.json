@@ -18,10 +18,10 @@
   "dependencies": {
     "@acpp/core": "workspace:*",
     "@acpp/identity": "workspace:*",
+    "@acpp/policy": "workspace:*",
     "@acpp/signals": "workspace:*"
   },
   "devDependencies": {
-    "@acpp/policy": "workspace:*",
     "@acpp/typescript-config": "workspace:*",
     "@types/node": "^22.15.21",
     "tsx": "^4.19.4",
