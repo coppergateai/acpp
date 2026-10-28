@@ -6,6 +6,7 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **A-012** — Local dev quickstart with reproducible allow/deny demos: `POST /v1/workspaces`, `@acpp/example-quickstart` (`pnpm quickstart`, `pnpm demo:allow-deny-explicit`), and [`docs/QUICKSTART.md`](./QUICKSTART.md).
 - **A-011** — OpenAPI 3.1 hosted API document (`GET /v1/openapi.json`) and portable protocol JSON Schemas (`GET /v1/protocol/schemas`, `GET /v1/protocol/schemas/{schemaId}`) in `@acpp/schemas`, separate from dashboard UI. See [`docs/protocol/schemas.md`](./protocol/schemas.md).
 - **P-030** — Receipt chain with `@acpp/receipts` inspector steps, in-memory `ReceiptStore` in `@acpp/db`, receipt HTTP routes and wedge revoke proof on `@acpp/api`, and dashboard receipt inspector with revoke-then-deny UI on `@acpp/web`. See [`docs/protocol/receipts.md`](./protocol/receipts.md).
 - **P-020** — GitHub connector: workspace connect-once (`ConnectionStore`), credential isolation via refs, real GitHub HTTP for `repos.metadata.read` and `issues.comment` in `@acpp/github`, and gated `POST /v1/github/actions/execute` plus connection routes on `@acpp/api`. See [`docs/protocol/connections.md`](./protocol/connections.md).
