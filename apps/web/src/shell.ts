@@ -1,4 +1,4 @@
-/** Minimal dashboard shell copy — full UI lands with P-030. */
+/** Dashboard navigation — receipt inspector on /receipts (P-030). */
 export const DASHBOARD_NAV = [
   "Overview",
   "Identities",
