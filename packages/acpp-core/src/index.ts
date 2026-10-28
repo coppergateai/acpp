@@ -59,3 +59,10 @@ export {
   type SignalDeliveryAckState,
   type SignalExecutionState,
 } from "./signal-categories.js";
+
+export {
+  assertExecutionTransition,
+  allowsBlindRetry,
+  EXECUTION_TERMINAL_STATES,
+  isTerminalExecutionState,
+} from "./execution-lifecycle.js";
