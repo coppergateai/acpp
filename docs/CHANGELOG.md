@@ -6,6 +6,7 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **AG-001** — CI check name honesty for Coppergate auto-accept: canonical required check list in [`docs/ci-required-checks.json`](./ci-required-checks.json), validation via `pnpm assert:ci-check-names` / `pnpm test:scripts`, and dogfood note to set `CI_REQUIRED_CHECK_NAMES=check` on the worker.
 - **P-022** — Documented MCP integration path: `@acpp/mcp` gateway pipeline + security boundary helpers (SSRF-safe endpoints, permitted-tool discovery, result sanitization), OpenAPI sketch routes (`SKETCHED_MCP_HOSTED_PATHS`), and [`docs/protocol/mcp-integration.md`](./protocol/mcp-integration.md). Not an MCP marketplace; execution adapter deferred to P-050.
 - **A-012** — Local dev quickstart with reproducible allow/deny demos: `POST /v1/workspaces`, `@acpp/example-quickstart` (`pnpm quickstart`, `pnpm demo:allow-deny-explicit`), and [`docs/QUICKSTART.md`](./QUICKSTART.md).
 - **A-011** — OpenAPI 3.1 hosted API document (`GET /v1/openapi.json`) and portable protocol JSON Schemas (`GET /v1/protocol/schemas`, `GET /v1/protocol/schemas/{schemaId}`) in `@acpp/schemas`, separate from dashboard UI. See [`docs/protocol/schemas.md`](./protocol/schemas.md).
