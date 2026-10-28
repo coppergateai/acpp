@@ -38,6 +38,7 @@ Maps to PRODUCT.md **§13 MVP**, **§22 Phase 1**, and **§23 acceptance**. Prov
 | Open | A-012 | Local dev + reproducible allow and deny demos | PRODUCT §17.1 — runnable quickstart shows success **and** policy denial |
 | Open | P-022 | Documented MCP integration path | PRODUCT §10 / §13.2 — gateway sketch + security boundary notes; not a marketplace |
 | Open | AG-001 | CI check name honesty for Coppergate auto-accept | Job name `check` must match `CI_REQUIRED_CHECK_NAMES` |
+| Open | AG-002 | Lockfile sync on dependency edits | Any `package.json` change must refresh `pnpm-lock.yaml`; CI `assert:lockfile` + Coppergate delivery refuse `lockfile_out_of_sync` |
 
 ## Phase 2 — Developer platform (later)
 
