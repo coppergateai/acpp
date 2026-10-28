@@ -13,8 +13,10 @@ import {
   IdentityRegistry,
   ReceiptStore,
   SignalStore,
+  TeamStore,
   isWorkspaceId,
   type StoredGithubConnection,
+  type TeamRole,
 } from "@acpp/db";
 import {
   executionOutcomeFromGate,
@@ -41,6 +43,7 @@ import { runWedgeRevokeProof } from "./wedge-proof.js";
 export type ApiServerOptions = {
   registry?: IdentityRegistry;
   signals?: SignalStore;
+  teams?: TeamStore;
   grants?: GrantStore;
   connections?: ConnectionStore;
   receipts?: ReceiptStore;
@@ -55,6 +58,9 @@ function publicGithubConnection(row: StoredGithubConnection) {
     workspaceId: row.workspaceId,
     installationId: row.installationId,
     credentialRef: row.credentialRef,
+    sharing: row.sharing,
+    ownerOrganization: row.ownerOrganization,
+    connectedBy: row.connectedBy,
     createdAt: row.createdAt,
   };
 }
@@ -80,10 +86,12 @@ function sendJson(res: ServerResponse, status: number, body: unknown): void {
  */
 export function createApiServer(options: ApiServerOptions = {}) {
   const registry = options.registry ?? new IdentityRegistry();
-  const grants = options.grants ?? new GrantStore(registry.workspace);
+  const teams = options.teams ?? new TeamStore(registry.workspace);
+  const grants =
+    options.grants ?? new GrantStore(registry.workspace, teams);
   const signals = options.signals ?? new SignalStore(registry);
   const connections =
-    options.connections ?? new ConnectionStore(registry.workspace);
+    options.connections ?? new ConnectionStore(registry.workspace, teams);
   const receipts =
     options.receipts ?? new ReceiptStore(registry.workspace);
   const githubHttp = options.githubHttp;
@@ -118,6 +126,133 @@ export function createApiServer(options: ApiServerOptions = {}) {
         return;
       }
       sendJson(res, 200, schema);
+      return;
+    }
+
+    const workspaceTeamsMatch = path.match(
+      /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/teams$/,
+    );
+    if (req.method === "GET" && workspaceTeamsMatch) {
+      const workspaceIdRaw = workspaceTeamsMatch[1];
+      if (!workspaceIdRaw || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw;
+      if (!teams.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      const rows = teams.listTeams(workspaceId);
+      sendJson(res, 200, { teams: rows });
+      return;
+    }
+
+    if (req.method === "POST" && workspaceTeamsMatch) {
+      const workspaceIdRaw = workspaceTeamsMatch[1];
+      if (!workspaceIdRaw || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw;
+      const body = (await readJsonBody(req)) as {
+        slug?: string;
+        displayName?: string;
+        organizationAddress?: string;
+        teamId?: string;
+      };
+      if (!body.slug || !body.displayName || !body.organizationAddress) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      if (!isActorAddress(body.organizationAddress)) {
+        sendJson(res, 400, { error: "invalid_organization" });
+        return;
+      }
+      if (!teams.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      try {
+        const team = teams.createTeam({
+          workspaceId,
+          slug: body.slug,
+          displayName: body.displayName,
+          organizationAddress: body.organizationAddress,
+          teamId: body.teamId,
+        });
+        sendJson(res, 201, { team });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "team_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    const workspaceTeamMembersMatch = path.match(
+      /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/teams\/([A-Za-z0-9_-]+)\/members$/,
+    );
+    if (req.method === "POST" && workspaceTeamMembersMatch) {
+      const workspaceIdRaw = workspaceTeamMembersMatch[1];
+      const teamId = workspaceTeamMembersMatch[2];
+      if (!workspaceIdRaw || !teamId || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw;
+      const body = (await readJsonBody(req)) as {
+        member?: string;
+        role?: string;
+        membershipId?: string;
+      };
+      const roles = new Set<TeamRole>(["admin", "grant_manager", "member"]);
+      if (
+        !body.member ||
+        !body.role ||
+        !isActorAddress(body.member) ||
+        !roles.has(body.role as TeamRole)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      if (!teams.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      try {
+        const membership = teams.addMember({
+          workspaceId,
+          teamId,
+          member: body.member,
+          role: body.role as TeamRole,
+          membershipId: body.membershipId,
+        });
+        sendJson(res, 201, { membership });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "membership_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    if (req.method === "GET" && workspaceTeamMembersMatch) {
+      const workspaceIdRaw = workspaceTeamMembersMatch[1];
+      const teamId = workspaceTeamMembersMatch[2];
+      if (!workspaceIdRaw || !teamId || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw;
+      if (!teams.getTeam(teamId, workspaceId)) {
+        sendJson(res, 404, { error: "team_not_found" });
+        return;
+      }
+      const members = teams.listMembers(teamId, workspaceId);
+      sendJson(res, 200, { members });
       return;
     }
 
@@ -813,9 +948,23 @@ export function createApiServer(options: ApiServerOptions = {}) {
       const body = (await readJsonBody(req)) as {
         installationId?: string;
         accessToken?: string;
+        connectedBy?: string;
+        ownerOrganization?: string;
       };
-      if (!body.installationId || !body.accessToken) {
+      if (
+        !body.installationId ||
+        !body.accessToken ||
+        !body.connectedBy ||
+        !isActorAddress(body.connectedBy)
+      ) {
         sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      if (
+        body.ownerOrganization &&
+        !isActorAddress(body.ownerOrganization)
+      ) {
+        sendJson(res, 400, { error: "invalid_owner_organization" });
         return;
       }
       if (!connections.workspace.getWorkspace(workspaceId)) {
@@ -827,6 +976,8 @@ export function createApiServer(options: ApiServerOptions = {}) {
           workspaceId,
           installationId: body.installationId,
           accessToken: body.accessToken,
+          connectedBy: body.connectedBy,
+          ownerOrganization: body.ownerOrganization as ActorAddress | undefined,
         });
         sendJson(res, 201, {
           connection: publicGithubConnection(connection),
