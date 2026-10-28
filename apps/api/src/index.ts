@@ -11,10 +11,15 @@ import {
   ConnectionStore,
   GrantStore,
   IdentityRegistry,
+  ReceiptStore,
   SignalStore,
   isWorkspaceId,
   type StoredGithubConnection,
 } from "@acpp/db";
+import {
+  executionOutcomeFromGate,
+  executionOutcomeFromGithub,
+} from "@acpp/receipts";
 import {
   executeGithubAction,
   githubResource,
@@ -22,12 +27,14 @@ import {
   type GithubProtectedAction,
 } from "@acpp/github";
 import { hashActionPayload } from "@acpp/policy";
+import { runWedgeRevokeProof } from "./wedge-proof.js";
 
 export type ApiServerOptions = {
   registry?: IdentityRegistry;
   signals?: SignalStore;
   grants?: GrantStore;
   connections?: ConnectionStore;
+  receipts?: ReceiptStore;
   githubHttp?: GithubHttpClient;
 };
 
@@ -68,6 +75,8 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const signals = options.signals ?? new SignalStore(registry);
   const connections =
     options.connections ?? new ConnectionStore(registry.workspace);
+  const receipts =
+    options.receipts ?? new ReceiptStore(registry.workspace);
   const githubHttp = options.githubHttp;
 
   return createServer(async (req, res) => {
@@ -205,6 +214,30 @@ export function createApiServer(options: ApiServerOptions = {}) {
       return;
     }
 
+    const signalReceiptMatch = path.match(
+      /^\/v1\/signals\/([A-Za-z0-9_-]{8,128})\/receipt$/,
+    );
+    if (req.method === "GET" && signalReceiptMatch) {
+      const signalId = signalReceiptMatch[1]!;
+      const workspaceId = url.searchParams.get("workspaceId");
+      if (!workspaceId || !isWorkspaceId(workspaceId)) {
+        sendJson(res, 400, { error: "missing_or_invalid_workspace" });
+        return;
+      }
+      const signal = signals.getSignal(signalId);
+      if (!signal || signal.workspaceId !== workspaceId) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      const receipt = receipts.getReceiptBySignalId(signalId, workspaceId);
+      if (!receipt) {
+        sendJson(res, 404, { error: "receipt_not_found" });
+        return;
+      }
+      sendJson(res, 200, { receipt, signal: signal.envelope });
+      return;
+    }
+
     const signalMatch = path.match(/^\/v1\/signals\/([A-Za-z0-9_-]{8,128})$/);
     if (req.method === "GET" && signalMatch) {
       const signalId = signalMatch[1]!;
@@ -215,6 +248,132 @@ export function createApiServer(options: ApiServerOptions = {}) {
       }
       const delivery = signals.getDelivery(signalId);
       sendJson(res, 200, { signal, delivery });
+      return;
+    }
+
+    if (req.method === "GET" && path === "/v1/receipts") {
+      const workspaceId = url.searchParams.get("workspaceId");
+      if (!workspaceId || !isWorkspaceId(workspaceId)) {
+        sendJson(res, 400, { error: "missing_or_invalid_workspace" });
+        return;
+      }
+      if (!receipts.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      const rows = receipts.listReceipts({ workspaceId });
+      sendJson(res, 200, { receipts: rows });
+      return;
+    }
+
+    const receiptMatch = path.match(/^\/v1\/receipts\/([A-Za-z0-9_-]{8,128})$/);
+    if (req.method === "GET" && receiptMatch) {
+      const receiptId = receiptMatch[1]!;
+      const workspaceId = url.searchParams.get("workspaceId");
+      if (!workspaceId || !isWorkspaceId(workspaceId)) {
+        sendJson(res, 400, { error: "missing_or_invalid_workspace" });
+        return;
+      }
+      const receipt = receipts.getReceipt(receiptId, workspaceId);
+      if (!receipt) {
+        sendJson(res, 404, { error: "not_found" });
+        return;
+      }
+      sendJson(res, 200, { receipt });
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/receipts") {
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        signalId?: string;
+        sender?: string;
+        verificationOk?: boolean;
+        decision?: {
+          decisionId: string;
+          allow: boolean;
+          reason: string;
+          grantId?: string;
+          requiresApproval: boolean;
+          evaluatedAt: string;
+        };
+        approvalId?: string;
+        execution?: {
+          status: string;
+          externalRef?: string;
+          error?: string;
+          note?: string;
+          reason?: string;
+        };
+      };
+      if (
+        !body.workspaceId ||
+        !body.signalId ||
+        !body.sender ||
+        body.verificationOk === undefined ||
+        !body.decision ||
+        !body.execution ||
+        !isWorkspaceId(body.workspaceId) ||
+        !isActorAddress(body.sender)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      const signal = signals.getSignal(body.signalId);
+      if (!signal || signal.workspaceId !== body.workspaceId) {
+        sendJson(res, 404, { error: "signal_not_found" });
+        return;
+      }
+      try {
+        const receipt = receipts.recordReceipt({
+          workspaceId: body.workspaceId,
+          signalId: body.signalId,
+          sender: body.sender,
+          verificationOk: body.verificationOk,
+          decision: body.decision,
+          approvalId: body.approvalId,
+          execution: body.execution as import("@acpp/receipts").ExecutionOutcome,
+        });
+        sendJson(res, 201, { receipt });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "receipt_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/demo/wedge-revoke-proof") {
+      try {
+        const mockFetch: typeof fetch = async (input, init) => {
+          const urlStr = String(input);
+          if (urlStr.includes("/issues/") && init?.method === "POST") {
+            return new Response(JSON.stringify({ id: 1, html_url: "https://example.test/1" }), {
+              status: 201,
+              headers: { "content-type": "application/json" },
+            });
+          }
+          return new Response(JSON.stringify({ full_name: "coppergateai/acpp" }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        };
+        const result = await runWedgeRevokeProof({
+          registry,
+          signals,
+          grants,
+          connections,
+          receipts,
+          githubHttp: githubHttp ?? { fetch: mockFetch },
+        });
+        sendJson(res, 200, result);
+      } catch (err) {
+        sendJson(res, 500, {
+          error: "wedge_proof_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
       return;
     }
 
@@ -546,6 +705,8 @@ export function createApiServer(options: ApiServerOptions = {}) {
         payloadHash?: string;
         payload?: unknown;
         approvalId?: string;
+        signalId?: string;
+        recordReceipt?: boolean;
       };
       const payloadHash =
         body.payloadHash ??
@@ -563,6 +724,13 @@ export function createApiServer(options: ApiServerOptions = {}) {
       ) {
         sendJson(res, 400, { error: "invalid_body" });
         return;
+      }
+      if (body.signalId) {
+        const linked = signals.getSignal(body.signalId);
+        if (!linked || linked.workspaceId !== body.workspaceId) {
+          sendJson(res, 400, { error: "invalid_signal_link" });
+          return;
+        }
       }
       const connection = connections.getGithubConnection(
         body.connectionId,
@@ -587,7 +755,23 @@ export function createApiServer(options: ApiServerOptions = {}) {
           body.approvalId,
         );
         if (!gate.allowed) {
-          sendJson(res, 403, { gate });
+          let receipt;
+          if (body.signalId && (body.recordReceipt ?? true)) {
+            try {
+              receipt = receipts.recordReceipt({
+                workspaceId: body.workspaceId,
+                signalId: body.signalId,
+                sender: body.subject,
+                verificationOk: true,
+                decision: gate.decision,
+                approvalId: body.approvalId,
+                execution: executionOutcomeFromGate(gate),
+              });
+            } catch {
+              /* receipt may already exist on retry */
+            }
+          }
+          sendJson(res, 403, { gate, receipt });
           return;
         }
         const token = connections.resolveCredential(connection.credentialRef);
@@ -606,7 +790,23 @@ export function createApiServer(options: ApiServerOptions = {}) {
           { token, http: githubHttp },
         );
         const status = execution.ok ? 200 : 502;
-        sendJson(res, status, { gate, execution });
+        let receipt;
+        if (body.signalId && (body.recordReceipt ?? true)) {
+          try {
+            receipt = receipts.recordReceipt({
+              workspaceId: body.workspaceId,
+              signalId: body.signalId,
+              sender: body.subject,
+              verificationOk: true,
+              decision: gate.decision,
+              approvalId: body.approvalId,
+              execution: executionOutcomeFromGithub(execution),
+            });
+          } catch {
+            /* ignore duplicate receipt */
+          }
+        }
+        sendJson(res, status, { gate, execution, receipt });
       } catch (err) {
         sendJson(res, 403, {
           error: "tenant_boundary",

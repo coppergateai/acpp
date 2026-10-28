@@ -575,4 +575,48 @@ describe("@acpp/api", () => {
       { githubHttp: { fetch: mockFetch } },
     );
   });
+
+  it("records receipt chain and proves revoke-then-deny (P-030)", async () => {
+    const registry = new IdentityRegistry();
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const proof = await fetch(`${base}/v1/demo/wedge-revoke-proof`, {
+        method: "POST",
+      });
+      assert.equal(proof.status, 200);
+      const body = (await proof.json()) as {
+        workspaceId: string;
+        allowReceipt: { receiptId: string; signalId: string };
+        denyReceipt: { receiptId: string };
+        proof: {
+          beforeRevoke: { allowed: boolean; executionOk: boolean };
+          afterRevoke: { allowed: boolean; executeStatus: number };
+        };
+        allowChain: { phase: string }[];
+      };
+      assert.equal(body.proof.beforeRevoke.allowed, true);
+      assert.equal(body.proof.beforeRevoke.executionOk, true);
+      assert.equal(body.proof.afterRevoke.allowed, false);
+      assert.equal(body.proof.afterRevoke.executeStatus, 403);
+      assert.equal(body.allowChain.length, 4);
+
+      const bySignal = await fetch(
+        `${base}/v1/signals/${body.allowReceipt.signalId}/receipt?workspaceId=${encodeURIComponent(body.workspaceId)}`,
+      );
+      assert.equal(bySignal.status, 200);
+      const signalReceipt = (await bySignal.json()) as { receipt: { receiptId: string } };
+      assert.equal(signalReceipt.receipt.receiptId, body.allowReceipt.receiptId);
+
+      const byId = await fetch(
+        `${base}/v1/receipts/${body.denyReceipt.receiptId}?workspaceId=${encodeURIComponent(body.workspaceId)}`,
+      );
+      assert.equal(byId.status, 200);
+
+      const list = await fetch(
+        `${base}/v1/receipts?workspaceId=${encodeURIComponent(body.workspaceId)}`,
+      );
+      const listed = (await list.json()) as { receipts: unknown[] };
+      assert.equal(listed.receipts.length, 2);
+    });
+  });
 });

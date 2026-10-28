@@ -16,6 +16,7 @@
     "@acpp/db": "workspace:*",
     "@acpp/identity": "workspace:*",
     "@acpp/policy": "workspace:*",
+    "@acpp/receipts": "workspace:*",
     "@acpp/signals": "workspace:*"
   },
   "devDependencies": {
