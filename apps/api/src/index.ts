@@ -9,6 +9,7 @@ import {
 import type { WorkspaceId } from "@acpp/db";
 import {
   ConnectionStore,
+  ExecutionStore,
   GrantStore,
   IdentityRegistry,
   SignalStore,
@@ -28,6 +29,7 @@ export type ApiServerOptions = {
   signals?: SignalStore;
   grants?: GrantStore;
   connections?: ConnectionStore;
+  executions?: ExecutionStore;
   githubHttp?: GithubHttpClient;
 };
 
@@ -68,6 +70,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const signals = options.signals ?? new SignalStore(registry);
   const connections =
     options.connections ?? new ConnectionStore(registry.workspace);
+  const executions = options.executions ?? new ExecutionStore();
   const githubHttp = options.githubHttp;
 
   return createServer(async (req, res) => {
@@ -475,6 +478,52 @@ export function createApiServer(options: ApiServerOptions = {}) {
       return;
     }
 
+    const workspaceGithubRotateMatch = path.match(
+      /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/connections\/github\/rotate$/,
+    );
+    if (req.method === "POST" && workspaceGithubRotateMatch) {
+      const workspaceIdRaw = workspaceGithubRotateMatch[1];
+      if (!workspaceIdRaw || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw;
+      const body = (await readJsonBody(req)) as {
+        connectionId?: string;
+        accessToken?: string;
+      };
+      if (!body.connectionId || !body.accessToken) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      if (!connections.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      try {
+        const rotated = connections.rotateGithubCredential({
+          workspaceId,
+          connectionId: body.connectionId,
+          accessToken: body.accessToken,
+        });
+        sendJson(res, 200, {
+          connection: publicGithubConnection(rotated.connection),
+          credential: {
+            credentialRef: rotated.credential.credentialRef,
+            status: rotated.credential.status,
+            supersedes: rotated.credential.supersedes,
+            createdAt: rotated.credential.createdAt,
+          },
+        });
+      } catch (err) {
+        sendJson(res, 404, {
+          error: "rotate_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
     const workspaceGithubConnectMatch = path.match(
       /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/connections\/github$/,
     );
@@ -546,6 +595,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
         payloadHash?: string;
         payload?: unknown;
         approvalId?: string;
+        idempotencyKey?: string;
       };
       const payloadHash =
         body.payloadHash ??
@@ -575,6 +625,35 @@ export function createApiServer(options: ApiServerOptions = {}) {
       const resource = githubResource(body.repo);
       const action = body.action as GithubProtectedAction;
       try {
+        const begun = executions.beginExecution({
+          workspaceId: body.workspaceId,
+          connectionId: body.connectionId,
+          subject: body.subject,
+          resource,
+          action,
+          payloadHash,
+          idempotencyKey: body.idempotencyKey,
+        });
+        if (!begun.ok) {
+          sendJson(res, 409, {
+            error: begun.reason,
+            execution:
+              begun.reason === "no_blind_retry"
+                ? begun.execution
+                : begun.existing,
+          });
+          return;
+        }
+
+        let record = begun.execution;
+        if (begun.resumed && record.state === "succeeded") {
+          sendJson(res, 200, {
+            execution: record,
+            cached: true,
+          });
+          return;
+        }
+
         const gate = grants.gateProtectedAction(
           {
             workspaceId: body.workspaceId,
@@ -587,11 +666,30 @@ export function createApiServer(options: ApiServerOptions = {}) {
           body.approvalId,
         );
         if (!gate.allowed) {
-          sendJson(res, 403, { gate });
+          const nextState =
+            gate.reason === "approval_required" ? "awaiting_approval" : "rejected";
+          record = executions.transition(record.executionId, nextState, {
+            error: gate.reason,
+          });
+          sendJson(res, 403, { gate, execution: record });
           return;
         }
+
+        record = executions.transition(record.executionId, "authorized");
         const token = connections.resolveCredential(connection.credentialRef);
-        const execution = await executeGithubAction(
+        if (!token) {
+          record = executions.transition(record.executionId, "failed", {
+            credentialRef: connection.credentialRef,
+            error: "connection_credential_unavailable",
+          });
+          sendJson(res, 502, { execution: record });
+          return;
+        }
+
+        record = executions.transition(record.executionId, "running", {
+          credentialRef: connection.credentialRef,
+        });
+        const githubResult = await executeGithubAction(
           {
             subject: body.subject,
             connectionId: body.connectionId,
@@ -605,8 +703,32 @@ export function createApiServer(options: ApiServerOptions = {}) {
           true,
           { token, http: githubHttp },
         );
-        const status = execution.ok ? 200 : 502;
-        sendJson(res, status, { gate, execution });
+        const terminalState =
+          githubResult.state === "succeeded"
+            ? "succeeded"
+            : githubResult.state === "outcome_unknown"
+              ? "outcome_unknown"
+              : "failed";
+        record = executions.transition(record.executionId, terminalState, {
+          externalRef: githubResult.externalRef,
+          error: githubResult.error,
+        });
+        const status =
+          terminalState === "succeeded"
+            ? 200
+            : terminalState === "outcome_unknown"
+              ? 504
+              : 502;
+        sendJson(res, status, {
+          gate,
+          execution: record,
+          outcome: {
+            ok: githubResult.ok,
+            state: githubResult.state,
+            externalRef: githubResult.externalRef,
+            error: githubResult.error,
+          },
+        });
       } catch (err) {
         sendJson(res, 403, {
           error: "tenant_boundary",
