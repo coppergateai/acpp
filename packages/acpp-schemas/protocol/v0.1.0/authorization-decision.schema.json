@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acpp.ai/schemas/protocol/v0.1.0/authorization-decision",
+  "title": "AuthorizationDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decisionId", "allow", "reason", "requiresApproval", "evaluatedAt"],
+  "properties": {
+    "decisionId": { "type": "string", "minLength": 1 },
+    "allow": { "type": "boolean" },
+    "reason": { "type": "string" },
+    "grantId": { "type": "string" },
+    "requiresApproval": { "type": "boolean" },
+    "evaluatedAt": { "type": "string", "format": "date-time" }
+  }
+}
