@@ -35,7 +35,7 @@ Maps to PRODUCT.md **§13 MVP**, **§22 Phase 1**, and **§23 acceptance**. Prov
 | Open | P-031 | Dashboard IA + onboarding wedge flow | PRODUCT §11.1–11.2 — Overview, Identities, Connections, Signals, Permissions, Receipts, Developers; TTFV steps 1–8 |
 | Open | A-010 | HTTP API + SDK stub + wedge-github quickstart polish | PRODUCT §16–17 — expand beyond health; publish walkthrough |
 | Done | A-011 | OpenAPI + machine-readable protocol schemas | PRODUCT §13.2 DX / §16 — `@acpp/schemas`, `/v1/openapi.json`, `/v1/protocol/schemas`; `docs/protocol/schemas.md` |
-| Open | A-012 | Local dev + reproducible allow and deny demos | PRODUCT §17.1 — runnable quickstart shows success **and** policy denial |
+| Done | A-012 | Local dev + reproducible allow and deny demos | PRODUCT §17.1 — runnable quickstart shows success **and** policy denial |
 | Open | P-022 | Documented MCP integration path | PRODUCT §10 / §13.2 — gateway sketch + security boundary notes; not a marketplace |
 | Open | AG-001 | CI check name honesty for Coppergate auto-accept | Job name `check` must match `CI_REQUIRED_CHECK_NAMES` |
 | Open | AG-002 | Lockfile sync on dependency edits | Any `package.json` change must refresh `pnpm-lock.yaml`; CI `assert:lockfile` + Coppergate delivery refuse `lockfile_out_of_sync` |
