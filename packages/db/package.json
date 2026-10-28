@@ -16,7 +16,8 @@
     "test": "node --import tsx --test $(find src -name '*.test.ts')"
   },
   "dependencies": {
-    "@acpp/core": "workspace:*"
+    "@acpp/core": "workspace:*",
+    "@acpp/identity": "workspace:*"
   },
   "devDependencies": {
     "@acpp/policy": "workspace:*",
