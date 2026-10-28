@@ -10,6 +10,9 @@
     "test": "node --import tsx --test $(find src -name '*.test.ts')",
     "dev": "node --import tsx src/serve.ts"
   },
+  "dependencies": {
+    "@acpp/receipts": "workspace:*"
+  },
   "devDependencies": {
     "@acpp/typescript-config": "workspace:*",
     "@types/node": "^22.15.21",
