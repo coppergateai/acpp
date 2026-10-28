@@ -1,15 +1,20 @@
 # Wedge: GitHub
 
-Demonstrates the ACPP MVP loop in-process:
+Demonstrates the ACPP MVP loop:
 
-1. Create agent address
-2. Grant scoped GitHub permission
-3. Execute authorized stub action
-4. Build receipt
-5. Revoke grant → subsequent evaluation denies
+1. **In-process sketch** — identity → grant → GitHub action → receipt → revoke → deny (`demo.ts`).
+2. **HTTP walkthrough** — workspace → register agent → signed signal → grant → GitHub execute → revoke → deny via `@acpp/client` (`walkthrough.ts`).
+
+## Run
 
 ```bash
 pnpm --filter @acpp/example-wedge-github test
 ```
 
-Real GitHub HTTP + hosted connection/execute API shipped in **P-020**; quickstart polish continues under **A-010**. See [`docs/protocol/connections.md`](../../docs/protocol/connections.md).
+The HTTP test starts `@acpp/api` in-process with mocked GitHub HTTP (no credentials required).
+
+## Hosted flow
+
+Start the API (`pnpm --filter @acpp/api dev`) and follow [`docs/QUICKSTART.md`](../../docs/QUICKSTART.md).
+
+Protocol details: [`docs/protocol/connections.md`](../../docs/protocol/connections.md), [`docs/WEDGE.md`](../../docs/WEDGE.md).
