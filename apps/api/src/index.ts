@@ -7,14 +7,41 @@ import {
   type SignalEnvelope,
 } from "@acpp/core";
 import type { WorkspaceId } from "@acpp/db";
-import { GrantStore, IdentityRegistry, SignalStore, isWorkspaceId } from "@acpp/db";
+import {
+  ConnectionStore,
+  GrantStore,
+  IdentityRegistry,
+  SignalStore,
+  isWorkspaceId,
+  type StoredGithubConnection,
+} from "@acpp/db";
+import {
+  executeGithubAction,
+  githubResource,
+  type GithubHttpClient,
+  type GithubProtectedAction,
+} from "@acpp/github";
 import { hashActionPayload } from "@acpp/policy";
 
 export type ApiServerOptions = {
   registry?: IdentityRegistry;
   signals?: SignalStore;
   grants?: GrantStore;
+  connections?: ConnectionStore;
+  githubHttp?: GithubHttpClient;
 };
+
+const GITHUB_ACTIONS = new Set<string>(["issues.comment", "repos.metadata.read"]);
+
+function publicGithubConnection(row: StoredGithubConnection) {
+  return {
+    connectionId: row.connectionId,
+    workspaceId: row.workspaceId,
+    installationId: row.installationId,
+    credentialRef: row.credentialRef,
+    createdAt: row.createdAt,
+  };
+}
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -39,6 +66,9 @@ export function createApiServer(options: ApiServerOptions = {}) {
   const registry = options.registry ?? new IdentityRegistry();
   const grants = options.grants ?? new GrantStore(registry.workspace);
   const signals = options.signals ?? new SignalStore(registry);
+  const connections =
+    options.connections ?? new ConnectionStore(registry.workspace);
+  const githubHttp = options.githubHttp;
 
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -436,6 +466,147 @@ export function createApiServer(options: ApiServerOptions = {}) {
         );
         const status = gate.allowed ? 200 : 403;
         sendJson(res, status, { gate });
+      } catch (err) {
+        sendJson(res, 403, {
+          error: "tenant_boundary",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    const workspaceGithubConnectMatch = path.match(
+      /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/connections\/github$/,
+    );
+    if (req.method === "POST" && workspaceGithubConnectMatch) {
+      const workspaceIdRaw = workspaceGithubConnectMatch[1];
+      if (!workspaceIdRaw || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw;
+      const body = (await readJsonBody(req)) as {
+        installationId?: string;
+        accessToken?: string;
+      };
+      if (!body.installationId || !body.accessToken) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      if (!connections.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      try {
+        const connection = connections.connectGithub({
+          workspaceId,
+          installationId: body.installationId,
+          accessToken: body.accessToken,
+        });
+        sendJson(res, 201, {
+          connection: publicGithubConnection(connection),
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status = message.includes("already exists") ? 409 : 400;
+        sendJson(res, status, { error: "connect_failed", message });
+      }
+      return;
+    }
+
+    const workspaceConnectionsMatch = path.match(
+      /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/connections$/,
+    );
+    if (req.method === "GET" && workspaceConnectionsMatch) {
+      const workspaceIdRaw = workspaceConnectionsMatch[1];
+      if (!workspaceIdRaw || !isWorkspaceId(workspaceIdRaw)) {
+        sendJson(res, 400, { error: "invalid_workspace" });
+        return;
+      }
+      const workspaceId = workspaceIdRaw as WorkspaceId;
+      if (!connections.workspace.getWorkspace(workspaceId)) {
+        sendJson(res, 404, { error: "workspace_not_found" });
+        return;
+      }
+      const rows = connections.listGithubConnections(workspaceId);
+      sendJson(res, 200, {
+        connections: rows.map(publicGithubConnection),
+      });
+      return;
+    }
+
+    if (req.method === "POST" && path === "/v1/github/actions/execute") {
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        connectionId?: string;
+        subject?: string;
+        repo?: string;
+        action?: string;
+        at?: string;
+        payloadHash?: string;
+        payload?: unknown;
+        approvalId?: string;
+      };
+      const payloadHash =
+        body.payloadHash ??
+        (body.payload !== undefined ? hashActionPayload(body.payload) : undefined);
+      if (
+        !body.workspaceId ||
+        !body.connectionId ||
+        !body.subject ||
+        !body.repo ||
+        !body.action ||
+        payloadHash === undefined ||
+        !isWorkspaceId(body.workspaceId) ||
+        !isActorAddress(body.subject) ||
+        !GITHUB_ACTIONS.has(body.action)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      const connection = connections.getGithubConnection(
+        body.connectionId,
+        body.workspaceId,
+      );
+      if (!connection) {
+        sendJson(res, 404, { error: "connection_not_found" });
+        return;
+      }
+      const resource = githubResource(body.repo);
+      const action = body.action as GithubProtectedAction;
+      try {
+        const gate = grants.gateProtectedAction(
+          {
+            workspaceId: body.workspaceId,
+            subject: body.subject,
+            resource,
+            action,
+            at: body.at,
+          },
+          { payloadHash },
+          body.approvalId,
+        );
+        if (!gate.allowed) {
+          sendJson(res, 403, { gate });
+          return;
+        }
+        const token = connections.resolveCredential(connection.credentialRef);
+        const execution = await executeGithubAction(
+          {
+            subject: body.subject,
+            connectionId: body.connectionId,
+            repo: body.repo,
+            action,
+            payload:
+              body.payload && typeof body.payload === "object"
+                ? (body.payload as Record<string, unknown>)
+                : undefined,
+          },
+          true,
+          { token, http: githubHttp },
+        );
+        const status = execution.ok ? 200 : 502;
+        sendJson(res, status, { gate, execution });
       } catch (err) {
         sendJson(res, 403, {
           error: "tenant_boundary",
