@@ -19,7 +19,10 @@ export PRIMARY_NAME=acpp
 export ARCHITECTURE_REPO=coppergateai/acpp
 export ARCHITECTURE_PATHS=docs/OPEN_PROGRAM.md
 export MAINTAINER_BUDGET_MICROS=8000000
+export CI_REQUIRED_CHECK_NAMES=check
 ```
+
+Coppergate worker **`CI_REQUIRED_CHECK_NAMES`** must match the GitHub check-run name from [`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Canonical value for this repo: **`check`** (see [`docs/ci-required-checks.json`](./ci-required-checks.json)). CI runs `pnpm assert:ci-check-names` so the manifest cannot drift from the workflow.
 
 ## Boot (from coppergate monorepo)
 
@@ -43,7 +46,7 @@ Prerequisites:
 
 1. Create workspace (if needed) and attach GitHub App to **coppergateai** (include `acpp`).
 2. Create project whose primary repo is `coppergateai/acpp`.
-3. CI job name on this repo is **`check`** (see `.github/workflows/ci.yml`).
+3. CI job name on this repo is **`check`**; set **`CI_REQUIRED_CHECK_NAMES=check`** on the worker (see [`ci-required-checks.json`](./ci-required-checks.json)).
 
 ## Prove checklist
 
