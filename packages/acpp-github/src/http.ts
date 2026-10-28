@@ -37,16 +37,32 @@ export async function performGithubHttpAction(
   req: GithubActionRequest,
   token: string,
   http: GithubHttpClient = { fetch },
-): Promise<{ ok: boolean; externalRef?: string; error?: string; status?: number }> {
+): Promise<{
+  ok: boolean;
+  state: "succeeded" | "failed" | "outcome_unknown";
+  externalRef?: string;
+  error?: string;
+  status?: number;
+}> {
   const { owner, name } = parseGithubRepo(req.repo);
   const repoPath = `/repos/${owner}/${name}`;
 
   if (req.action === "repos.metadata.read") {
-    const res = await githubRequest(repoPath, token, http, { method: "GET" });
+    let res: Response;
+    try {
+      res = await githubRequest(repoPath, token, http, { method: "GET" });
+    } catch (err) {
+      return {
+        ok: false,
+        state: "outcome_unknown",
+        error: err instanceof Error ? err.message : "github_transport_error",
+      };
+    }
     if (!res.ok) {
       const text = await res.text();
       return {
         ok: false,
+        state: "failed",
         error: `github_http_${res.status}`,
         status: res.status,
         externalRef: text.slice(0, 120) || undefined,
@@ -57,7 +73,7 @@ export async function performGithubHttpAction(
       body.full_name != null
         ? `github:repo:${body.full_name}`
         : `github:repo:${owner}/${name}`;
-    return { ok: true, externalRef: ref, status: res.status };
+    return { ok: true, state: "succeeded", externalRef: ref, status: res.status };
   }
 
   if (req.action === "issues.comment") {
@@ -65,30 +81,44 @@ export async function performGithubHttpAction(
     const issueNumber = payload.issueNumber;
     const bodyText = payload.body;
     if (typeof issueNumber !== "number" || !Number.isInteger(issueNumber) || issueNumber < 1) {
-      return { ok: false, error: "invalid_payload_issueNumber" };
+      return { ok: false, state: "failed", error: "invalid_payload_issueNumber" };
     }
     if (typeof bodyText !== "string" || !bodyText.trim()) {
-      return { ok: false, error: "invalid_payload_body" };
+      return { ok: false, state: "failed", error: "invalid_payload_body" };
     }
-    const res = await githubRequest(
-      `${repoPath}/issues/${issueNumber}/comments`,
-      token,
-      http,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body: bodyText }),
-      },
-    );
+    let res: Response;
+    try {
+      res = await githubRequest(
+        `${repoPath}/issues/${issueNumber}/comments`,
+        token,
+        http,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ body: bodyText }),
+        },
+      );
+    } catch (err) {
+      return {
+        ok: false,
+        state: "outcome_unknown",
+        error: err instanceof Error ? err.message : "github_transport_error",
+      };
+    }
     if (!res.ok) {
-      return { ok: false, error: `github_http_${res.status}`, status: res.status };
+      return {
+        ok: false,
+        state: "failed",
+        error: `github_http_${res.status}`,
+        status: res.status,
+      };
     }
     const comment = (await res.json()) as { id?: number; html_url?: string };
     const externalRef =
       comment.html_url ??
       (comment.id != null ? `github:issue_comment:${comment.id}` : undefined);
-    return { ok: true, externalRef, status: res.status };
+    return { ok: true, state: "succeeded", externalRef, status: res.status };
   }
 
-  return { ok: false, error: `unsupported_action:${req.action}` };
+  return { ok: false, state: "failed", error: `unsupported_action:${req.action}` };
 }
