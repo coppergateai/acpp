@@ -51,7 +51,7 @@ Maps to PRODUCT.md **§22 Phase 2**. Do not pull these ahead of Phase 1 Open row
 | Done | A-020 | SDK quality pass (sign/verify/signals/authz/receipts) | PRODUCT §17.2 — `@acpp/sdk`; explicit approval/execute steps; `docs/protocol/sdk.md` |
 | Open | P-050 | Second connector or hardened MCP adapter | PRODUCT §22 Phase 2 — expand beyond GitHub without sprawl |
 | Open | P-060 | Audit export for incident investigation | PRODUCT §15.6 / §22 — append-oriented export for authorized roles |
-| Open | P-070 | Organization + team roles | PRODUCT §22 — shared connections, team grants; still Community pricing surface |
+| Done | P-070 | Organization + team roles | PRODUCT §22 — shared connections, team grants; still Community pricing surface |
 
 ## Phase 0 — shipped with scaffold
 
