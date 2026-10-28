@@ -4,11 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node dist/export-landing.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node -e \"process.exit(0)\"",
     "test": "node --import tsx --test $(find src -name '*.test.ts')",
-    "dev": "node --import tsx src/serve.ts"
+    "dev": "node --import tsx src/serve.ts",
+    "export:landing": "node --import tsx src/export-landing.ts"
   },
   "dependencies": {
     "@acpp/receipts": "workspace:*"

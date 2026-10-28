@@ -46,7 +46,7 @@ describe("@acpp/web inspector", () => {
     assert.doesNotMatch(steps, /<script>/);
   });
 
-  it("includes receipts nav link in dashboard shell", () => {
+  it("includes receipts and dashboard nav links in dashboard shell", () => {
     const page = renderDashboardPage({
       title: "ACPP",
       nav: ["Overview", "Receipts"],
@@ -54,5 +54,6 @@ describe("@acpp/web inspector", () => {
       apiBase: "http://127.0.0.1:8787",
     });
     assert.match(page, /href="\/receipts"/);
+    assert.match(page, /href="\/dashboard"/);
   });
 });

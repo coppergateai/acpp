@@ -31,7 +31,7 @@ packages/
   db/              # persistence (Drizzle)
 apps/
   api/             # Developer HTTP API
-  web/             # minimal dashboard
+  web/             # landing page (/) + receipt dashboard
 examples/
   wedge-github/    # end-to-end quickstart
 ```
@@ -43,6 +43,13 @@ corepack enable && corepack prepare pnpm@9.15.9 --activate
 pnpm install
 pnpm typecheck
 pnpm test
+```
+
+Local site + API:
+
+```bash
+pnpm --filter @acpp/api dev   # :8787
+pnpm --filter @acpp/web dev   # :3000 — landing at /, receipts at /receipts
 ```
 
 Requires Node.js **22+**.

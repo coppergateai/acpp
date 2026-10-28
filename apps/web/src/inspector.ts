@@ -68,7 +68,7 @@ export function renderDashboardPage(options: {
     .map((n) => {
       const href =
         n === "Overview"
-          ? "/"
+          ? "/dashboard"
           : n === "Receipts"
             ? "/receipts"
             : `#${n.toLowerCase()}`;
