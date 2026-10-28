@@ -10,8 +10,8 @@ ACPP complements [Model Context Protocol (MCP)](https://modelcontextprotocol.io/
 | Layer | Phase 1 | Notes |
 | --- | --- | --- |
 | GitHub connector | **Implemented** | [`connections.md`](./connections.md) — reference gateway pattern |
-| MCP gateway HTTP | **Sketched in OpenAPI** | Routes marked `x-acpp-implementation-status: sketch` |
-| MCP gateway logic | **`@acpp/mcp`** | Pipeline + SSRF/allowlist helpers with tests |
+| MCP gateway HTTP | **Partial** | `GET /v1/mcp/capabilities` implemented (P-040); connect + invoke remain sketch |
+| MCP gateway logic | **`@acpp/mcp`** + **`@acpp/discovery`** | Pipeline, SSRF/allowlist helpers, permitted-tool discovery |
 | Universal MCP adapter | **Phase 2 (P-050)** | Hardened execution after GitHub wedge is proven |
 
 ## Architecture sketch
@@ -41,7 +41,7 @@ The agent identity is always separate from the connected account’s credentials
 
 ## HTTP routes (sketch)
 
-These paths are documented in `GET /v1/openapi.json` for SDK and integration planning. The hosted service returns **501** or omits routing until P-050; GitHub remains the production connector.
+These paths are documented in `GET /v1/openapi.json`. **`GET /v1/mcp/capabilities`** is live (P-040). Connect and invoke remain sketch until P-050; GitHub remains the production connector.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
