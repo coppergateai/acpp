@@ -12,4 +12,4 @@ Demonstrates the ACPP MVP loop in-process:
 pnpm --filter @acpp/example-wedge-github test
 ```
 
-Real GitHub HTTP + hosted connection/execute API shipped in **P-020**; quickstart polish continues under **A-010**. See [`docs/protocol/connections.md`](../../docs/protocol/connections.md).
+Real GitHub HTTP + hosted connection/execute API shipped in **P-020**. Runnable local allow/deny demo: **A-012** — [`docs/QUICKSTART.md`](../../docs/QUICKSTART.md) and [`examples/quickstart`](../quickstart/README.md). See [`docs/protocol/connections.md`](../../docs/protocol/connections.md).
