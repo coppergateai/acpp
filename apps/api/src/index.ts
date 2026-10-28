@@ -117,6 +117,32 @@ export function createApiServer(options: ApiServerOptions = {}) {
       return;
     }
 
+    if (req.method === "POST" && path === "/v1/workspaces") {
+      const body = (await readJsonBody(req)) as {
+        id?: string;
+        slug?: string;
+        displayName?: string;
+      };
+      if (!body.id || !body.slug || !body.displayName) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      try {
+        const workspace = registry.workspace.createWorkspace({
+          id: body.id,
+          slug: body.slug,
+          displayName: body.displayName,
+        });
+        sendJson(res, 201, { workspace });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "workspace_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
     const workspaceIdentityMatch = path.match(
       /^\/v1\/workspaces\/(ws_[A-Za-z0-9_-]+)\/identities$/,
     );
