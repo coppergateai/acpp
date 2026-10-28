@@ -84,6 +84,7 @@ export async function runWedgeRevokeProof(
     workspaceId: ws.workspaceId,
     installationId: "wedge-demo",
     accessToken: "demo-token",
+    connectedBy: owner.address,
   });
 
   const grant = deps.grants.createGrant({
