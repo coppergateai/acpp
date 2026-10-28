@@ -46,6 +46,7 @@ Implementation:
 | `POST` | `/v1/identities/{address}/keys/rotate` | Rotate active signing key |
 | `POST` | `/v1/identities/{address}/suspend` | Suspend identity |
 | `POST` | `/v1/verify` | Verify signature for enrolled key |
+| `GET` | `/v1/identities/{address}/capabilities` | Authorized capability discovery (P-040 — see [`discovery.md`](./discovery.md)) |
 
 Register body:
 
