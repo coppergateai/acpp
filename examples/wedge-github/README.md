@@ -12,4 +12,4 @@ Demonstrates the ACPP MVP loop in-process:
 pnpm --filter @acpp/example-wedge-github test
 ```
 
-Real GitHub HTTP + hosted API: Open IDs `P-020` / `A-010`.
+Real GitHub HTTP + hosted connection/execute API shipped in **P-020**; quickstart polish continues under **A-010**. See [`docs/protocol/connections.md`](../../docs/protocol/connections.md).
