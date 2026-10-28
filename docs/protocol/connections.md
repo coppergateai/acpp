@@ -13,8 +13,8 @@ Workspace-scoped tool connections let operators configure an integration **once*
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/v1/workspaces/{workspaceId}/connections/github` | Connect GitHub once per workspace (`installationId`, `accessToken` body fields) |
-| `GET` | `/v1/workspaces/{workspaceId}/connections` | List connections (credential refs only) |
+| `POST` | `/v1/workspaces/{workspaceId}/connections/github` | Connect GitHub once per workspace (`installationId`, `accessToken`, `connectedBy`; optional `ownerOrganization` when teams exist — P-070) |
+| `GET` | `/v1/workspaces/{workspaceId}/connections` | List connections (credential refs only; includes `sharing`, `ownerOrganization`, `connectedBy`) |
 | `POST` | `/v1/github/actions/execute` | Policy gate + GitHub HTTP for an authorized agent |
 
 ### Execute body
