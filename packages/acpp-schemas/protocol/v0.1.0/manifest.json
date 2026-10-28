@@ -1,0 +1,27 @@
+{
+  "protocolVersion": "0.1.0",
+  "title": "ACPP portable protocol schemas",
+  "description": "Transport-independent message and authorization structures. These schemas are separate from the hosted HTTP API (see openapi/acpp-hosted-v1.openapi.json).",
+  "schemas": [
+    {
+      "id": "signal-envelope",
+      "file": "signal-envelope.schema.json",
+      "summary": "Versioned authenticated signal envelope (docs/protocol/signal.md)"
+    },
+    {
+      "id": "permission-grant",
+      "file": "permission-grant.schema.json",
+      "summary": "Explicit permission grant (docs/protocol/authz.md)"
+    },
+    {
+      "id": "authorization-decision",
+      "file": "authorization-decision.schema.json",
+      "summary": "Deterministic authorization evaluation result"
+    },
+    {
+      "id": "receipt",
+      "file": "receipt.schema.json",
+      "summary": "Signal → verification → decision → execution receipt (docs/protocol/receipts.md)"
+    }
+  ]
+}

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ACPP_PROTOCOL_VERSION, type SignalEnvelope } from "@acpp/core";
+import {
+  ACPP_HOSTED_API_VERSION,
+  ACPP_PROTOCOL_SCHEMA_VERSION,
+} from "@acpp/schemas";
 import { generateEd25519KeyPair, signMessage } from "@acpp/identity";
 import { signingMessage } from "@acpp/signals";
 import { IdentityRegistry } from "@acpp/db";
@@ -56,6 +60,39 @@ describe("@acpp/api", () => {
       assert.equal(res.status, 200);
       const body = (await res.json()) as { ok: boolean };
       assert.equal(body.ok, true);
+    });
+  });
+
+  it("serves OpenAPI and portable protocol schemas", async () => {
+    await withServer(new IdentityRegistry(), async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const openapi = await fetch(`${base}/v1/openapi.json`);
+      assert.equal(openapi.status, 200);
+      const apiDoc = (await openapi.json()) as {
+        openapi: string;
+        info: { version: string };
+        paths: Record<string, unknown>;
+      };
+      assert.equal(apiDoc.openapi, "3.1.0");
+      assert.equal(apiDoc.info.version, ACPP_HOSTED_API_VERSION);
+      assert.ok("/v1/signals" in apiDoc.paths);
+
+      const manifest = await fetch(`${base}/v1/protocol/schemas`);
+      assert.equal(manifest.status, 200);
+      const manifestBody = (await manifest.json()) as {
+        protocolVersion: string;
+        schemas: { id: string }[];
+      };
+      assert.equal(manifestBody.protocolVersion, ACPP_PROTOCOL_SCHEMA_VERSION);
+      assert.ok(manifestBody.schemas.some((s) => s.id === "signal-envelope"));
+
+      const schema = await fetch(`${base}/v1/protocol/schemas/signal-envelope`);
+      assert.equal(schema.status, 200);
+      const envelope = (await schema.json()) as { title: string };
+      assert.equal(envelope.title, "SignalEnvelope");
+
+      const missing = await fetch(`${base}/v1/protocol/schemas/unknown-id`);
+      assert.equal(missing.status, 404);
     });
   });
 

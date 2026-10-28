@@ -27,6 +27,11 @@ import {
   type GithubProtectedAction,
 } from "@acpp/github";
 import { hashActionPayload } from "@acpp/policy";
+import {
+  loadHostedOpenApi,
+  loadProtocolManifest,
+  loadProtocolSchema,
+} from "@acpp/schemas";
 import { runWedgeRevokeProof } from "./wedge-proof.js";
 
 export type ApiServerOptions = {
@@ -85,6 +90,30 @@ export function createApiServer(options: ApiServerOptions = {}) {
 
     if (path === "/health" || path === "/ready") {
       sendJson(res, 200, { ok: true, protocolVersion: ACPP_PROTOCOL_VERSION });
+      return;
+    }
+
+    if (req.method === "GET" && path === "/v1/openapi.json") {
+      sendJson(res, 200, loadHostedOpenApi());
+      return;
+    }
+
+    if (req.method === "GET" && path === "/v1/protocol/schemas") {
+      sendJson(res, 200, loadProtocolManifest());
+      return;
+    }
+
+    const protocolSchemaMatch = path.match(
+      /^\/v1\/protocol\/schemas\/([a-z0-9-]+)$/,
+    );
+    if (req.method === "GET" && protocolSchemaMatch) {
+      const schemaId = protocolSchemaMatch[1]!;
+      const schema = loadProtocolSchema(schemaId);
+      if (!schema) {
+        sendJson(res, 404, { error: "schema_not_found" });
+        return;
+      }
+      sendJson(res, 200, schema);
       return;
     }
 

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://acpp.ai/schemas/protocol/v0.1.0/permission-grant",
+  "title": "PermissionGrant",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["grantId", "subject", "resource", "action", "requiresApproval"],
+  "properties": {
+    "grantId": { "type": "string", "minLength": 1 },
+    "subject": {
+      "type": "string",
+      "pattern": "^acpp:(human|agent|service|organization|application):[A-Za-z0-9_-]+$"
+    },
+    "resource": { "type": "string", "minLength": 1 },
+    "action": { "type": "string", "minLength": 1 },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "revokedAt": { "type": "string", "format": "date-time" },
+    "requiresApproval": { "type": "boolean" }
+  }
+}
