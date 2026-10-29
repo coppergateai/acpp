@@ -65,4 +65,48 @@ describe("ConnectionStore", () => {
     assert.equal(store.getGithubConnection(conn.connectionId, wsA.workspaceId)?.connectionId, conn.connectionId);
     assert.equal(store.getGithubConnection(conn.connectionId, wsB.workspaceId), undefined);
   });
+
+  it("rotates GitHub credential and invalidates the prior ref (P-021)", () => {
+    const workspace = new WorkspaceStore();
+    const ws = workspace.createWorkspace({
+      id: "rot",
+      slug: "rot",
+      displayName: "Rot",
+    });
+    const store = new ConnectionStore(workspace);
+    const conn = store.connectGithub({
+      workspaceId: ws.workspaceId,
+      installationId: "1",
+      accessToken: "token-old",
+    });
+    const oldRef = conn.credentialRef;
+    const rotated = store.rotateGithubCredential(
+      conn.connectionId,
+      ws.workspaceId,
+      "token-new",
+    );
+    assert.notEqual(rotated.credentialRef, oldRef);
+    assert.equal(store.resolveCredential(oldRef), undefined);
+    assert.equal(store.resolveCredential(rotated.credentialRef), "token-new");
+  });
+
+  it("revokes GitHub connection so credential resolve fails (P-021)", () => {
+    const workspace = new WorkspaceStore();
+    const ws = workspace.createWorkspace({
+      id: "rev",
+      slug: "rev",
+      displayName: "Rev",
+    });
+    const store = new ConnectionStore(workspace);
+    const conn = store.connectGithub({
+      workspaceId: ws.workspaceId,
+      installationId: "1",
+      accessToken: "token-live",
+    });
+    const ref = conn.credentialRef;
+    store.revokeGithubConnection(conn.connectionId, ws.workspaceId);
+    assert.equal(store.getGithubConnection(conn.connectionId, ws.workspaceId), undefined);
+    assert.equal(store.resolveCredential(ref), undefined);
+    assert.equal(store.listGithubConnections(ws.workspaceId).length, 0);
+  });
 });

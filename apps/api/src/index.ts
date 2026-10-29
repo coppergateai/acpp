@@ -9,6 +9,7 @@ import {
 import type { WorkspaceId } from "@acpp/db";
 import {
   ConnectionStore,
+  ExecutionStore,
   GrantStore,
   IdentityRegistry,
   ReceiptStore,
@@ -51,6 +52,7 @@ export type ApiServerOptions = {
   grants?: GrantStore;
   connections?: ConnectionStore;
   receipts?: ReceiptStore;
+  executions?: ExecutionStore;
   githubHttp?: GithubHttpClient;
 };
 
@@ -170,6 +172,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
     options.connections ?? new ConnectionStore(registry.workspace);
   const receipts =
     options.receipts ?? new ReceiptStore(registry.workspace);
+  const executions = options.executions ?? new ExecutionStore();
   const githubHttp = options.githubHttp;
 
   return createServer(async (req, res) => {
@@ -941,6 +944,129 @@ export function createApiServer(options: ApiServerOptions = {}) {
       return;
     }
 
+    if (req.method === "POST" && path === "/v1/approvals/requests") {
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        grantId?: string;
+        subject?: string;
+        resource?: string;
+        action?: string;
+        payloadHash?: string;
+        payload?: unknown;
+        reason?: string;
+        context?: string;
+        risks?: string[];
+        expiresAt?: string;
+      };
+      const payloadHash =
+        body.payloadHash ??
+        (body.payload !== undefined ? hashActionPayload(body.payload) : undefined);
+      if (
+        !body.workspaceId ||
+        !body.grantId ||
+        !body.subject ||
+        !body.resource ||
+        !body.action ||
+        payloadHash === undefined ||
+        !body.expiresAt ||
+        !isWorkspaceId(body.workspaceId) ||
+        !isActorAddress(body.subject)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      try {
+        const request = grants.createApprovalRequest({
+          workspaceId: body.workspaceId,
+          grantId: body.grantId,
+          subject: body.subject,
+          resource: body.resource,
+          action: body.action,
+          payloadHash,
+          reason: body.reason,
+          context: body.context,
+          risks: body.risks,
+          expiresAt: body.expiresAt,
+        });
+        sendJson(res, 201, { request });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "approval_request_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    if (req.method === "GET" && path === "/v1/approvals") {
+      const workspaceId = url.searchParams.get("workspaceId");
+      const status = url.searchParams.get("status") ?? undefined;
+      if (!workspaceId || !isWorkspaceId(workspaceId)) {
+        sendJson(res, 400, { error: "missing_or_invalid_workspace" });
+        return;
+      }
+      if (
+        status &&
+        status !== "pending" &&
+        status !== "approved" &&
+        status !== "denied" &&
+        status !== "expired"
+      ) {
+        sendJson(res, 400, { error: "invalid_status" });
+        return;
+      }
+      const requests = grants.listApprovalRequests({
+        workspaceId,
+        status: status as
+          | "pending"
+          | "approved"
+          | "denied"
+          | "expired"
+          | undefined,
+      });
+      sendJson(res, 200, { requests });
+      return;
+    }
+
+    const approvalDecideMatch = path.match(
+      /^\/v1\/approvals\/([A-Za-z0-9_-]{8,128})\/decide$/,
+    );
+    if (req.method === "POST" && approvalDecideMatch) {
+      const requestId = approvalDecideMatch[1]!;
+      const body = (await readJsonBody(req)) as {
+        approved?: boolean;
+        payloadHash?: string;
+        payload?: unknown;
+      };
+      if (body.approved === undefined) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      const payloadHash =
+        body.payloadHash ??
+        (body.payload !== undefined ? hashActionPayload(body.payload) : undefined);
+      try {
+        const decided = grants.decideApprovalRequest(requestId, {
+          approved: body.approved,
+          payloadHash,
+        });
+        sendJson(res, 200, decided);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const status =
+          message.includes("expired") ||
+          message.includes("already decided") ||
+          message.includes("materially changed") ||
+          message.includes("no longer")
+            ? 409
+            : message.includes("Unknown")
+              ? 404
+              : 409;
+        sendJson(res, status, { error: "decide_failed", message });
+      }
+      return;
+    }
+
     if (req.method === "POST" && path === "/v1/approvals") {
       const body = (await readJsonBody(req)) as {
         grantId?: string;
@@ -979,6 +1105,105 @@ export function createApiServer(options: ApiServerOptions = {}) {
       } catch (err) {
         sendJson(res, 409, {
           error: "approval_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    const connectionRotateMatch = path.match(
+      /^\/v1\/connections\/([A-Za-z0-9_-]{8,128})\/rotate$/,
+    );
+    if (req.method === "POST" && connectionRotateMatch) {
+      const connectionId = connectionRotateMatch[1]!;
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+        accessToken?: string;
+      };
+      const workspaceId =
+        body.workspaceId ?? url.searchParams.get("workspaceId") ?? undefined;
+      if (
+        !workspaceId ||
+        !body.accessToken ||
+        !isWorkspaceId(workspaceId)
+      ) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      try {
+        if (connections.getGithubConnection(connectionId, workspaceId)) {
+          const connection = connections.rotateGithubCredential(
+            connectionId,
+            workspaceId,
+            body.accessToken,
+          );
+          sendJson(res, 200, {
+            connection: publicGithubConnection(connection),
+          });
+          return;
+        }
+        if (connections.getMcpConnection(connectionId, workspaceId)) {
+          const connection = connections.rotateMcpCredential(
+            connectionId,
+            workspaceId,
+            body.accessToken,
+          );
+          sendJson(res, 200, {
+            connection: publicMcpConnection(connection),
+          });
+          return;
+        }
+        sendJson(res, 404, { error: "connection_not_found" });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "rotate_failed",
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return;
+    }
+
+    const connectionRevokeMatch = path.match(
+      /^\/v1\/connections\/([A-Za-z0-9_-]{8,128})\/revoke$/,
+    );
+    if (req.method === "POST" && connectionRevokeMatch) {
+      const connectionId = connectionRevokeMatch[1]!;
+      const body = (await readJsonBody(req)) as {
+        workspaceId?: string;
+      };
+      const workspaceId =
+        body.workspaceId ?? url.searchParams.get("workspaceId") ?? undefined;
+      if (!workspaceId || !isWorkspaceId(workspaceId)) {
+        sendJson(res, 400, { error: "invalid_body" });
+        return;
+      }
+      try {
+        if (connections.getGithubConnection(connectionId, workspaceId)) {
+          const connection = connections.revokeGithubConnection(
+            connectionId,
+            workspaceId,
+          );
+          sendJson(res, 200, {
+            connection: publicGithubConnection(connection),
+            revoked: true,
+          });
+          return;
+        }
+        if (connections.getMcpConnection(connectionId, workspaceId)) {
+          const connection = connections.revokeMcpConnection(
+            connectionId,
+            workspaceId,
+          );
+          sendJson(res, 200, {
+            connection: publicMcpConnection(connection),
+            revoked: true,
+          });
+          return;
+        }
+        sendJson(res, 404, { error: "connection_not_found" });
+      } catch (err) {
+        sendJson(res, 409, {
+          error: "revoke_failed",
           message: err instanceof Error ? err.message : String(err),
         });
       }
@@ -1107,6 +1332,7 @@ export function createApiServer(options: ApiServerOptions = {}) {
         approvalId?: string;
         signalId?: string;
         recordReceipt?: boolean;
+        idempotencyKey?: string;
       };
       const payloadHash =
         body.payloadHash ??
@@ -1142,6 +1368,36 @@ export function createApiServer(options: ApiServerOptions = {}) {
       }
       const resource = githubResource(body.repo);
       const action = body.action as GithubProtectedAction;
+      const retryGate = executions.assertBlindRetryAllowed({
+        workspaceId: body.workspaceId,
+        subject: body.subject,
+        resource,
+        action,
+        payloadHash,
+        connectionId: body.connectionId,
+        idempotencyKey: body.idempotencyKey,
+      });
+      if (!retryGate.allowed) {
+        sendJson(res, 409, {
+          error: retryGate.reason,
+          priorExecution: {
+            executionId: retryGate.prior.executionId,
+            state: retryGate.prior.state,
+            idempotencyKey: retryGate.prior.idempotencyKey,
+          },
+        });
+        return;
+      }
+      const tracked = executions.start({
+        workspaceId: body.workspaceId,
+        subject: body.subject,
+        resource,
+        action,
+        payloadHash,
+        signalId: body.signalId,
+        connectionId: body.connectionId,
+        idempotencyKey: body.idempotencyKey,
+      });
       try {
         const gate = grants.gateProtectedAction(
           {
@@ -1155,6 +1411,13 @@ export function createApiServer(options: ApiServerOptions = {}) {
           body.approvalId,
         );
         if (!gate.allowed) {
+          const terminalState =
+            gate.reason === "approval_required"
+              ? "awaiting_approval"
+              : "rejected";
+          executions.setState(tracked.executionId, terminalState, {
+            note: gate.reason,
+          });
           let receipt;
           if (body.signalId && (body.recordReceipt ?? true)) {
             try {
@@ -1171,25 +1434,78 @@ export function createApiServer(options: ApiServerOptions = {}) {
               /* receipt may already exist on retry */
             }
           }
-          sendJson(res, 403, { gate, receipt });
+          sendJson(res, 403, {
+            gate,
+            receipt,
+            executionState: executions.get(tracked.executionId),
+          });
           return;
         }
+        executions.setState(tracked.executionId, "authorized");
+        executions.setState(tracked.executionId, "running");
         const token = connections.resolveCredential(connection.credentialRef);
-        const execution = await executeGithubAction(
-          {
-            subject: body.subject,
-            connectionId: body.connectionId,
-            repo: body.repo,
-            action,
-            payload:
-              body.payload && typeof body.payload === "object"
-                ? (body.payload as Record<string, unknown>)
-                : undefined,
-          },
-          true,
-          { token, http: githubHttp },
-        );
-        const status = execution.ok ? 200 : 502;
+        let execution: {
+          ok: boolean;
+          externalRef?: string;
+          error?: string;
+        };
+        try {
+          execution = await executeGithubAction(
+            {
+              subject: body.subject,
+              connectionId: body.connectionId,
+              repo: body.repo,
+              action,
+              payload:
+                body.payload && typeof body.payload === "object"
+                  ? (body.payload as Record<string, unknown>)
+                  : undefined,
+            },
+            true,
+            { token, http: githubHttp },
+          );
+        } catch (execErr) {
+          const message =
+            execErr instanceof Error ? execErr.message : String(execErr);
+          const ambiguous =
+            /timeout|aborted|abort|ETIMEDOUT|ECONNRESET|network|fetch failed/i.test(
+              message,
+            );
+          execution = {
+            ok: false,
+            error: ambiguous
+              ? /timeout|ETIMEDOUT/i.test(message)
+                ? "timeout"
+                : /abort/i.test(message)
+                  ? "aborted"
+                  : "network_error"
+              : message,
+          };
+        }
+        const outcome = executionOutcomeFromGithub(execution);
+        if (outcome.status === "succeeded") {
+          executions.setState(tracked.executionId, "succeeded", {
+            note: outcome.externalRef,
+          });
+        } else if (outcome.status === "unknown") {
+          executions.setState(tracked.executionId, "outcome_unknown", {
+            note: outcome.note,
+          });
+        } else if (outcome.status === "denied") {
+          executions.setState(tracked.executionId, "rejected", {
+            note: outcome.reason,
+          });
+        } else {
+          executions.setState(tracked.executionId, "failed", {
+            note: outcome.error,
+          });
+        }
+        const status =
+          execution.ok
+            ? 200
+            : outcome.status === "unknown"
+              ? 504
+              : 502;
         let receipt;
         if (body.signalId && (body.recordReceipt ?? true)) {
           try {
@@ -1200,17 +1516,26 @@ export function createApiServer(options: ApiServerOptions = {}) {
               verificationOk: true,
               decision: gate.decision,
               approvalId: body.approvalId,
-              execution: executionOutcomeFromGithub(execution),
+              execution: outcome,
             });
           } catch {
             /* ignore duplicate receipt */
           }
         }
-        sendJson(res, status, { gate, execution, receipt });
+        sendJson(res, status, {
+          gate,
+          execution,
+          receipt,
+          executionState: executions.get(tracked.executionId),
+        });
       } catch (err) {
+        executions.setState(tracked.executionId, "failed", {
+          note: err instanceof Error ? err.message : String(err),
+        });
         sendJson(res, 403, {
           error: "tenant_boundary",
           message: err instanceof Error ? err.message : String(err),
+          executionState: executions.get(tracked.executionId),
         });
       }
       return;

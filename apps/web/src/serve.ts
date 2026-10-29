@@ -3,8 +3,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DASHBOARD_NAV, pageTitle } from "./shell.js";
-import { renderDashboardPage, renderReceiptsPage } from "./inspector.js";
+import { renderDashboardPage } from "./inspector.js";
 import { renderLandingPage } from "./landing/page.js";
+import { renderDashboardRouteBody } from "./dashboard.js";
 
 const port = Number(process.env.PORT ?? 3000);
 const apiBase = process.env.ACPP_API_URL ?? "http://127.0.0.1:8787";
@@ -54,12 +55,8 @@ createServer(async (req, res) => {
     return;
   }
 
-  if (pathName === "/receipts" || pathName === "/dashboard") {
-    const body =
-      pathName === "/receipts"
-        ? renderReceiptsPage(apiBase)
-        : `<section><p>Workspace overview — use <a href="/receipts">Receipts</a> for the P-030 inspector and revoke-then-deny proof.</p><p><a href="/">← ACPP home</a></p></section>`;
-
+  const body = renderDashboardRouteBody(pathName, apiBase);
+  if (body !== null) {
     const html = renderDashboardPage({
       title: pageTitle(),
       nav: DASHBOARD_NAV,

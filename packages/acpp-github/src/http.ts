@@ -33,6 +33,27 @@ async function githubRequest(
   });
 }
 
+function mapFetchFailure(err: unknown): {
+  ok: false;
+  error: string;
+} {
+  const message = err instanceof Error ? err.message : String(err);
+  const name = err instanceof Error ? err.name : "";
+  if (
+    name === "AbortError" ||
+    /aborted|abort/i.test(message)
+  ) {
+    return { ok: false, error: "aborted" };
+  }
+  if (/timeout|ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT/i.test(message)) {
+    return { ok: false, error: "timeout" };
+  }
+  if (/fetch failed|ECONNRESET|ENOTFOUND|network/i.test(message)) {
+    return { ok: false, error: "network_error" };
+  }
+  return { ok: false, error: "outcome_unknown" };
+}
+
 export async function performGithubHttpAction(
   req: GithubActionRequest,
   token: string,
@@ -41,54 +62,58 @@ export async function performGithubHttpAction(
   const { owner, name } = parseGithubRepo(req.repo);
   const repoPath = `/repos/${owner}/${name}`;
 
-  if (req.action === "repos.metadata.read") {
-    const res = await githubRequest(repoPath, token, http, { method: "GET" });
-    if (!res.ok) {
-      const text = await res.text();
-      return {
-        ok: false,
-        error: `github_http_${res.status}`,
-        status: res.status,
-        externalRef: text.slice(0, 120) || undefined,
-      };
+  try {
+    if (req.action === "repos.metadata.read") {
+      const res = await githubRequest(repoPath, token, http, { method: "GET" });
+      if (!res.ok) {
+        const text = await res.text();
+        return {
+          ok: false,
+          error: `github_http_${res.status}`,
+          status: res.status,
+          externalRef: text.slice(0, 120) || undefined,
+        };
+      }
+      const body = (await res.json()) as { full_name?: string; id?: number };
+      const ref =
+        body.full_name != null
+          ? `github:repo:${body.full_name}`
+          : `github:repo:${owner}/${name}`;
+      return { ok: true, externalRef: ref, status: res.status };
     }
-    const body = (await res.json()) as { full_name?: string; id?: number };
-    const ref =
-      body.full_name != null
-        ? `github:repo:${body.full_name}`
-        : `github:repo:${owner}/${name}`;
-    return { ok: true, externalRef: ref, status: res.status };
-  }
 
-  if (req.action === "issues.comment") {
-    const payload = req.payload ?? {};
-    const issueNumber = payload.issueNumber;
-    const bodyText = payload.body;
-    if (typeof issueNumber !== "number" || !Number.isInteger(issueNumber) || issueNumber < 1) {
-      return { ok: false, error: "invalid_payload_issueNumber" };
+    if (req.action === "issues.comment") {
+      const payload = req.payload ?? {};
+      const issueNumber = payload.issueNumber;
+      const bodyText = payload.body;
+      if (typeof issueNumber !== "number" || !Number.isInteger(issueNumber) || issueNumber < 1) {
+        return { ok: false, error: "invalid_payload_issueNumber" };
+      }
+      if (typeof bodyText !== "string" || !bodyText.trim()) {
+        return { ok: false, error: "invalid_payload_body" };
+      }
+      const res = await githubRequest(
+        `${repoPath}/issues/${issueNumber}/comments`,
+        token,
+        http,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ body: bodyText }),
+        },
+      );
+      if (!res.ok) {
+        return { ok: false, error: `github_http_${res.status}`, status: res.status };
+      }
+      const comment = (await res.json()) as { id?: number; html_url?: string };
+      const externalRef =
+        comment.html_url ??
+        (comment.id != null ? `github:issue_comment:${comment.id}` : undefined);
+      return { ok: true, externalRef, status: res.status };
     }
-    if (typeof bodyText !== "string" || !bodyText.trim()) {
-      return { ok: false, error: "invalid_payload_body" };
-    }
-    const res = await githubRequest(
-      `${repoPath}/issues/${issueNumber}/comments`,
-      token,
-      http,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body: bodyText }),
-      },
-    );
-    if (!res.ok) {
-      return { ok: false, error: `github_http_${res.status}`, status: res.status };
-    }
-    const comment = (await res.json()) as { id?: number; html_url?: string };
-    const externalRef =
-      comment.html_url ??
-      (comment.id != null ? `github:issue_comment:${comment.id}` : undefined);
-    return { ok: true, externalRef, status: res.status };
-  }
 
-  return { ok: false, error: `unsupported_action:${req.action}` };
+    return { ok: false, error: `unsupported_action:${req.action}` };
+  } catch (err) {
+    return mapFetchFailure(err);
+  }
 }

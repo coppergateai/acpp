@@ -62,8 +62,11 @@ export {
 
 export {
   GrantStore,
+  type CreateApprovalRequestInput,
   type CreateGrantInput,
+  type DecideApprovalRequestInput,
   type RecordApprovalInput,
+  type StoredApprovalRequest,
   type StoredGrant,
   type TenantAuthzRequest,
 } from "./grant-store.js";
@@ -75,6 +78,14 @@ export {
   type StoredGithubConnection,
   type StoredMcpConnection,
 } from "./connection-store.js";
+
+export {
+  ExecutionStore,
+  NON_IDEMPOTENT_ACTIONS,
+  type StartExecutionInput,
+  type StoredExecution,
+  type TerminalExecutionState,
+} from "./execution-store.js";
 
 export {
   ReceiptStore,

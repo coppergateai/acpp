@@ -39,6 +39,34 @@ export type ApprovalRecord = {
   decidedAt: string;
 };
 
+export type ApprovalRequestStatus =
+  | "pending"
+  | "approved"
+  | "denied"
+  | "expired";
+
+/**
+ * Pending approval inbox row (PRODUCT §9.4 / §11.6).
+ * Bound to grant scope + payload hash; stale or materially changed requests must not execute.
+ */
+export type ApprovalRequest = {
+  requestId: string;
+  grantId: string;
+  subject: ActorAddress;
+  resource: string;
+  action: string;
+  payloadHash: string;
+  reason?: string;
+  context?: string;
+  risks?: string[];
+  expiresAt: string;
+  status: ApprovalRequestStatus;
+  createdAt: string;
+  decidedAt?: string;
+  /** Set when decided via recordApproval path. */
+  approvalId?: string;
+};
+
 export type ActionBinding = {
   payloadHash: string;
 };

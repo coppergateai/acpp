@@ -110,6 +110,9 @@ importers:
 
   examples/wedge-github:
     dependencies:
+      '@acpp/api':
+        specifier: workspace:*
+        version: link:../../apps/api
       '@acpp/core':
         specifier: workspace:*
         version: link:../../packages/acpp-core

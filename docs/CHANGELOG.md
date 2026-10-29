@@ -6,6 +6,11 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **SEC-012** — Approval inbox with pending `ApprovalRequest` model, `GrantStore` create/list/decide (expire + payload-binding integrity), and HTTP `POST /v1/approvals/requests`, `GET /v1/approvals`, `POST /v1/approvals/{id}/decide` (direct `POST /v1/approvals` retained). See [`docs/protocol/authz.md`](./protocol/authz.md).
+- **P-021** — Credential rotate/revoke on `ConnectionStore` (`POST /v1/connections/{id}/rotate|revoke`), `ExecutionStore` lifecycle states, GitHub execute wiring with `outcome_unknown` mapping and no blind retry for `issues.comment`. See [`docs/protocol/connections.md`](./protocol/connections.md).
+- **AG-001 / AG-002** — CI job name `check` and `pnpm assert:lockfile` / `scripts/assert-lockfile.mjs` documented as Done (already present).
+- **P-031** — Dashboard IA + onboarding: real routes for Overview, Identities, Connections, Signals, Permissions, Approvals, Receipts, Developers, and `/onboarding` TTFV checklist (PRODUCT §11.1–11.2); workspace-scoped list tables against existing GET APIs.
+- **A-010** — Published GitHub wedge walkthrough ([`docs/wedge-github.md`](./wedge-github.md)); `@acpp/example-wedge-github` live HTTP demo against `@acpp/api` (stubs superseded by A-011/A-012/A-020).
 - **A-030** — MCP host adapter (`@acpp/mcp-host`): stdio MCP server for Cursor / Claude Desktop; embedded local API + mock `echo` tool; policy-gated `acpp_*` / `mcp_*` tools via gateway; docs in [`protocol/mcp-host.md`](./protocol/mcp-host.md).
 - **P-040 fix** — MCP capability discovery accepts grant action `mcp.tools.call` (aligned with P-050 gateway).
 - **P-050** — Hardened MCP adapter: workspace `POST /v1/workspaces/{id}/connections/mcp`, policy-gated `POST /v1/mcp/tools/invoke` (SSRF + allowlist + sanitize), Coppergate bridge via `ACPP_GATEWAY_URL`. Not an MCP marketplace.

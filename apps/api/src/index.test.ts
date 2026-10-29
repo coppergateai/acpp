@@ -7,7 +7,8 @@ import {
 } from "@acpp/schemas";
 import { generateEd25519KeyPair, signMessage } from "@acpp/identity";
 import { signingMessage } from "@acpp/signals";
-import { IdentityRegistry } from "@acpp/db";
+import { GrantStore, IdentityRegistry } from "@acpp/db";
+import { hashActionPayload } from "@acpp/policy";
 import { createApiServer, type ApiServerOptions } from "./index.ts";
 
 function signedSignal(
@@ -771,5 +772,342 @@ describe("@acpp/api", () => {
       const mcpBody = (await mcpDiscovery.json()) as { tools: unknown[] };
       assert.equal(mcpBody.tools.length, 0);
     });
+  });
+
+  it("approval inbox create→list→decide→execute (SEC-012)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "inbox",
+      slug: "inbox",
+      displayName: "Inbox",
+    });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner",
+      displayName: "Owner",
+    });
+    const agent = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "bot",
+      displayName: "Bot",
+    });
+    const resource = "github:repo:org/repo";
+    const action = "issues.comment";
+    const payload = { body: "approved via inbox" };
+
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const grantRes = await fetch(`${base}/v1/grants`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          grantedBy: owner.address,
+          subject: agent.address,
+          resource,
+          action,
+          requiresApproval: true,
+        }),
+      });
+      assert.equal(grantRes.status, 201);
+      const grantBody = (await grantRes.json()) as {
+        grant: { grantId: string };
+      };
+
+      const createReq = await fetch(`${base}/v1/approvals/requests`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          grantId: grantBody.grant.grantId,
+          subject: agent.address,
+          resource,
+          action,
+          payload,
+          reason: "comment",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+        }),
+      });
+      assert.equal(createReq.status, 201);
+      const created = (await createReq.json()) as {
+        request: { requestId: string; status: string };
+      };
+      assert.equal(created.request.status, "pending");
+
+      const inbox = await fetch(
+        `${base}/v1/approvals?workspaceId=${encodeURIComponent(ws.workspaceId)}&status=pending`,
+      );
+      assert.equal(inbox.status, 200);
+      const inboxBody = (await inbox.json()) as {
+        requests: { requestId: string }[];
+      };
+      assert.equal(inboxBody.requests.length, 1);
+
+      const decide = await fetch(
+        `${base}/v1/approvals/${created.request.requestId}/decide`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ approved: true, payload }),
+        },
+      );
+      assert.equal(decide.status, 200);
+      const decided = (await decide.json()) as {
+        approval: { approvalId: string };
+        request: { status: string };
+      };
+      assert.equal(decided.request.status, "approved");
+
+      const execute = await fetch(`${base}/v1/authorization/execute`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: ws.workspaceId,
+          subject: agent.address,
+          resource,
+          action,
+          payload,
+          approvalId: decided.approval.approvalId,
+        }),
+      });
+      assert.equal(execute.status, 200);
+    });
+  });
+
+  it("rejects approval decide after payload change or expiry (SEC-012)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "stale",
+      slug: "stale",
+      displayName: "Stale",
+    });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner",
+      displayName: "Owner",
+    });
+    const agent = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "bot",
+      displayName: "Bot",
+    });
+    const grants = new GrantStore(registry.workspace);
+    const grant = grants.createGrant({
+      workspaceId: ws.workspaceId,
+      grantedBy: owner.address,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      requiresApproval: true,
+    });
+    const request = grants.createApprovalRequest({
+      workspaceId: ws.workspaceId,
+      grantId: grant.grantId,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      payloadHash: hashActionPayload({ body: "a" }),
+      expiresAt: "2099-01-01T00:00:00.000Z",
+    });
+    const expired = grants.createApprovalRequest({
+      workspaceId: ws.workspaceId,
+      grantId: grant.grantId,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      payloadHash: hashActionPayload({ body: "b" }),
+      expiresAt: "2020-01-01T00:00:00.000Z",
+      createdAt: "2019-01-01T00:00:00.000Z",
+    });
+
+    await withServer(registry, async (port) => {
+      const base = `http://127.0.0.1:${port}`;
+      const changed = await fetch(
+        `${base}/v1/approvals/${request.requestId}/decide`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            approved: true,
+            payload: { body: "changed" },
+          }),
+        },
+      );
+      assert.equal(changed.status, 409);
+
+      const late = await fetch(
+        `${base}/v1/approvals/${expired.requestId}/decide`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ approved: true }),
+        },
+      );
+      assert.equal(late.status, 409);
+    }, { grants });
+  });
+
+  it("rotates and revokes connections; refuses outcome_unknown blind retry (P-021)", async () => {
+    const registry = new IdentityRegistry();
+    const ws = registry.workspace.createWorkspace({
+      id: "p021",
+      slug: "p021",
+      displayName: "P021",
+    });
+    const owner = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "human",
+      id: "owner",
+      displayName: "Owner",
+    });
+    const commenter = registry.workspace.registerActor({
+      workspaceId: ws.workspaceId,
+      actorType: "agent",
+      id: "commenter",
+      displayName: "Commenter",
+    });
+    const repo = "coppergateai/acpp";
+    const resource = `github:repo:${repo}`;
+    let call = 0;
+    const mockFetch: typeof fetch = async (_input, init) => {
+      if (init?.method === "POST") {
+        call += 1;
+        if (call === 1) {
+          throw new Error("timeout connecting to github");
+        }
+        return new Response(JSON.stringify({ id: 2, html_url: "https://github.com/c/2" }), {
+          status: 201,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response("not found", { status: 404 });
+    };
+
+    await withServer(
+      registry,
+      async (port) => {
+        const base = `http://127.0.0.1:${port}`;
+        const connect = await fetch(
+          `${base}/v1/workspaces/${ws.workspaceId}/connections/github`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              installationId: "42",
+              accessToken: "ghs_first",
+            }),
+          },
+        );
+        assert.equal(connect.status, 201);
+        const connected = (await connect.json()) as {
+          connection: { connectionId: string; credentialRef: string };
+        };
+        const connectionId = connected.connection.connectionId;
+        const oldRef = connected.connection.credentialRef;
+
+        const rotate = await fetch(`${base}/v1/connections/${connectionId}/rotate`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            accessToken: "ghs_rotated",
+          }),
+        });
+        assert.equal(rotate.status, 200);
+        const rotated = (await rotate.json()) as {
+          connection: { credentialRef: string };
+        };
+        assert.notEqual(rotated.connection.credentialRef, oldRef);
+
+        const grantRes = await fetch(`${base}/v1/grants`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            grantedBy: owner.address,
+            subject: commenter.address,
+            resource,
+            action: "issues.comment",
+          }),
+        });
+        assert.equal(grantRes.status, 201);
+
+        const payload = { issueNumber: 1, body: "once" };
+        const first = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: commenter.address,
+            repo,
+            action: "issues.comment",
+            payload,
+            idempotencyKey: "comment-1",
+          }),
+        });
+        assert.equal(first.status, 504);
+        const firstBody = (await first.json()) as {
+          executionState: { state: string };
+        };
+        assert.equal(firstBody.executionState.state, "outcome_unknown");
+
+        const blind = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: commenter.address,
+            repo,
+            action: "issues.comment",
+            payload,
+          }),
+        });
+        assert.equal(blind.status, 409);
+
+        const withKey = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: commenter.address,
+            repo,
+            action: "issues.comment",
+            payload,
+            idempotencyKey: "comment-1",
+          }),
+        });
+        assert.equal(withKey.status, 200);
+
+        const revoke = await fetch(`${base}/v1/connections/${connectionId}/revoke`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ workspaceId: ws.workspaceId }),
+        });
+        assert.equal(revoke.status, 200);
+
+        const afterRevoke = await fetch(`${base}/v1/github/actions/execute`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            workspaceId: ws.workspaceId,
+            connectionId,
+            subject: commenter.address,
+            repo,
+            action: "issues.comment",
+            payload: { issueNumber: 1, body: "after revoke" },
+            idempotencyKey: "comment-2",
+          }),
+        });
+        assert.equal(afterRevoke.status, 404);
+      },
+      { githubHttp: { fetch: mockFetch } },
+    );
   });
 });

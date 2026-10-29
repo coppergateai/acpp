@@ -49,11 +49,13 @@ describe("@acpp/web inspector", () => {
   it("includes receipts and dashboard nav links in dashboard shell", () => {
     const page = renderDashboardPage({
       title: "ACPP",
-      nav: ["Overview", "Receipts"],
+      nav: ["Overview", "Receipts", "Developers"],
       body: "<p>hi</p>",
       apiBase: "http://127.0.0.1:8787",
     });
     assert.match(page, /href="\/receipts"/);
     assert.match(page, /href="\/dashboard"/);
+    assert.match(page, /href="\/developers"/);
+    assert.doesNotMatch(page, /href="#developers"/);
   });
 });

@@ -8,6 +8,7 @@ export const DOCS = {
   protocol: `${GITHUB_REPO}/tree/main/docs/protocol`,
   sdk: `${GITHUB_REPO}/blob/main/docs/protocol/sdk.md`,
   wedge: `${GITHUB_REPO}/blob/main/docs/WEDGE.md`,
+  wedgeGithub: `${GITHUB_REPO}/blob/main/docs/wedge-github.md`,
   mcp: `${GITHUB_REPO}/blob/main/docs/protocol/mcp-integration.md`,
   openProgram: `${GITHUB_REPO}/blob/main/docs/OPEN_PROGRAM.md`,
   license: `${GITHUB_REPO}/blob/main/LICENSE`,

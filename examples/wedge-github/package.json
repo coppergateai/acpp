@@ -7,9 +7,11 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "node -e \"process.exit(0)\"",
-    "test": "node --import tsx --test $(find src -name '*.test.ts')"
+    "test": "node --import tsx --test $(find src -name '*.test.ts')",
+    "demo": "node --import tsx src/cli.ts"
   },
   "dependencies": {
+    "@acpp/api": "workspace:*",
     "@acpp/core": "workspace:*",
     "@acpp/github": "workspace:*",
     "@acpp/policy": "workspace:*",

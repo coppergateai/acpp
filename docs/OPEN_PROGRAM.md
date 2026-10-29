@@ -28,17 +28,17 @@ Maps to PRODUCT.md **§13 MVP**, **§22 Phase 1**, and **§23 acceptance**. Prov
 | Done | S-011 | Signal categories + correlation + delivery acks | PRODUCT §8.1–8.4 — Event/Request/Offer/Response/Approval/Revocation; delivery ≠ execution |
 | Done | SEC-010 | PermissionGrant + expire + revoke + approval-bound action | PRODUCT §9 / §13.2 Authorization — wire `@acpp/policy` into API |
 | Done | SEC-011 | Deny-by-default + scopes + tenant isolation | PRODUCT §15.2 / §14.2 — no grant → no access; server-side tenant boundaries + tests |
-| Open | SEC-012 | Approval inbox + action-binding integrity | PRODUCT §9.4 / §11.6 — Automatic / Approval required / Denied; reject stale or materially changed requests |
+| Done | SEC-012 | Approval inbox + action-binding integrity | PRODUCT §9.4 / §11.6 — Automatic / Approval required / Denied; reject stale or materially changed requests |
 | Done | P-020 | GitHub connection once + per-agent scope + one protected op | PRODUCT §10 / §12 Use Case D — real HTTP; credential isolation; issues.comment or repos.metadata.read |
-| Open | P-021 | Secret refs + execution outcome states | PRODUCT §10.3 / §14.5 — ConnectionCredentialReference; Not started→…→Outcome unknown; no blind retry |
-| Open | P-030 | Receipt chain + dashboard inspector + revoke-then-deny proof | PRODUCT §13.1 #8–9 — signal→decision→outcome; UI proves revoke then deny |
-| Open | P-031 | Dashboard IA + onboarding wedge flow | PRODUCT §11.1–11.2 — Overview, Identities, Connections, Signals, Permissions, Receipts, Developers; TTFV steps 1–8 |
-| Open | A-010 | HTTP API + SDK stub + wedge-github quickstart polish | PRODUCT §16–17 — expand beyond health; publish walkthrough |
+| Done | P-021 | Secret refs + execution outcome states | PRODUCT §10.3 / §14.5 — ConnectionCredentialReference; Not started→…→Outcome unknown; no blind retry |
+| Done | P-030 | Receipt chain + dashboard inspector + revoke-then-deny proof | PRODUCT §13.1 #8–9 — signal→decision→outcome; UI proves revoke then deny |
+| Done | P-031 | Dashboard IA + onboarding wedge flow | PRODUCT §11.1–11.2 — Overview…Developers routes; `/onboarding` TTFV checklist; `docs/ship-receipts/P-031.md` |
+| Done | A-010 | HTTP API + SDK stub + wedge-github quickstart polish | PRODUCT §16–17 — superseded stubs via A-011/A-012/A-020; `docs/wedge-github.md` + live example demo; `docs/ship-receipts/A-010.md` |
 | Done | A-011 | OpenAPI + machine-readable protocol schemas | PRODUCT §13.2 DX / §16 — `@acpp/schemas`, `/v1/openapi.json`, `/v1/protocol/schemas`; `docs/protocol/schemas.md` |
 | Done | A-012 | Local dev + reproducible allow and deny demos | PRODUCT §17.1 — runnable quickstart shows success **and** policy denial |
 | Done | P-022 | Documented MCP integration path | PRODUCT §10 / §13.2 — `@acpp/mcp`, OpenAPI sketch routes, `docs/protocol/mcp-integration.md`; not a marketplace |
-| Open | AG-001 | CI check name honesty for Coppergate auto-accept | Job name `check` must match `CI_REQUIRED_CHECK_NAMES` |
-| Open | AG-002 | Lockfile sync on dependency edits | Any `package.json` change must refresh `pnpm-lock.yaml`; CI `assert:lockfile` + Coppergate delivery refuse `lockfile_out_of_sync` |
+| Done | AG-001 | CI check name honesty for Coppergate auto-accept | Job name `check` must match `CI_REQUIRED_CHECK_NAMES` |
+| Done | AG-002 | Lockfile sync on dependency edits | Any `package.json` change must refresh `pnpm-lock.yaml`; CI `assert:lockfile` + Coppergate delivery refuse `lockfile_out_of_sync` |
 
 ## Phase 2 — Developer platform (later)
 

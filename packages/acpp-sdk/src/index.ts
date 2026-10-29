@@ -34,6 +34,8 @@ export {
   gateProtectedAction,
   hashActionPayload,
   type ApprovalRecord,
+  type ApprovalRequest,
+  type ApprovalRequestStatus,
   type AuthorizationDecision,
   type ExecutionGate,
   type PermissionGrant,

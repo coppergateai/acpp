@@ -86,6 +86,7 @@ For typed helpers (signing, explicit evaluate → approval → execute, receipts
 ## Related docs
 
 - Wedge narrative: [`WEDGE.md`](./WEDGE.md)
+- Published GitHub wedge walkthrough: [`wedge-github.md`](./wedge-github.md) (A-010)
 - GitHub connector: [`protocol/connections.md`](./protocol/connections.md)
 - Authorization: [`protocol/authz.md`](./protocol/authz.md)
-- In-process sketch: [`examples/wedge-github`](../examples/wedge-github/README.md)
+- Example package (live HTTP + offline sketch): [`examples/wedge-github`](../examples/wedge-github/README.md)

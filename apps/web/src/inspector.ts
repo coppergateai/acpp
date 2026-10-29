@@ -1,4 +1,5 @@
 import type { ReceiptChainStep } from "@acpp/receipts";
+import { dashboardNavHref } from "./shell.js";
 
 export type WedgeProofPayload = {
   workspaceId: string;
@@ -66,12 +67,7 @@ export function renderDashboardPage(options: {
 }): string {
   const nav = options.nav
     .map((n) => {
-      const href =
-        n === "Overview"
-          ? "/dashboard"
-          : n === "Receipts"
-            ? "/receipts"
-            : `#${n.toLowerCase()}`;
+      const href = dashboardNavHref(n);
       return `<li><a href="${href}">${escapeHtml(n)}</a></li>`;
     })
     .join("");
@@ -90,6 +86,19 @@ export function renderDashboardPage(options: {
     #revoke-proof.proof-fail { border-left: 4px solid #c30; padding-left: 1rem; }
     button { font: inherit; padding: 0.5rem 1rem; cursor: pointer; }
     .error { color: #c30; }
+    .muted { color: #555; }
+    .banner { border: 1px solid #ccc; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+    .counts { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.75rem; }
+    .counts div { margin: 0; }
+    .counts dt { font-size: 0.85rem; color: #555; }
+    .counts dd { margin: 0; font-size: 1.5rem; font-weight: 600; }
+    table.data { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    table.data th, table.data td { border-bottom: 1px solid #ddd; text-align: left; padding: 0.4rem 0.35rem; vertical-align: top; word-break: break-all; }
+    .onboard-list { list-style: none; padding: 0; }
+    .onboard-step { margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #eee; }
+    .onboard-step p { margin: 0.35rem 0 0 1.6rem; }
+    .cta { font-weight: 600; }
+    pre.code { background: #f4f4f5; padding: 0.75rem 1rem; overflow: auto; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -98,7 +107,7 @@ export function renderDashboardPage(options: {
     <nav><ul>${nav}</ul></nav>
   </header>
   ${options.body}
-  <footer><p><small>API: ${escapeHtml(options.apiBase)}</small></p></footer>
+  <footer><p><small>API: ${escapeHtml(options.apiBase)} · <a href="/">Home</a> · <a href="/onboarding">Onboarding</a></small></p></footer>
 </body>
 </html>`;
 }

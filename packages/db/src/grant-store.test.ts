@@ -195,4 +195,124 @@ describe("GrantStore", () => {
     assert.equal(changed.allowed, false);
     assert.equal(changed.reason, "approval_payload_mismatch");
   });
+
+  it("creates, lists, and decides approval requests (SEC-012)", () => {
+    const store = new GrantStore();
+    const { ws, human, agent } = humanAndAgent(store);
+    const grant = store.createGrant({
+      workspaceId: ws.workspaceId,
+      grantedBy: human.address,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      requiresApproval: true,
+    });
+    const payload = { body: "ship it" };
+    const payloadHash = hashActionPayload(payload);
+    const created = store.createApprovalRequest({
+      workspaceId: ws.workspaceId,
+      grantId: grant.grantId,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      payloadHash,
+      reason: "post comment",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+    });
+    assert.equal(created.status, "pending");
+
+    const pending = store.listApprovalRequests({
+      workspaceId: ws.workspaceId,
+      status: "pending",
+    });
+    assert.equal(pending.length, 1);
+    assert.equal(pending[0]!.requestId, created.requestId);
+
+    const decided = store.decideApprovalRequest(created.requestId, {
+      approved: true,
+    });
+    assert.equal(decided.request.status, "approved");
+    assert.ok(decided.approval.approvalId);
+    assert.equal(decided.approval.payloadHash, payloadHash);
+
+    const allowed = store.gateProtectedAction(
+      {
+        workspaceId: ws.workspaceId,
+        subject: agent.address,
+        resource: "github:repo:org/repo",
+        action: "issues.comment",
+      },
+      { payloadHash },
+      decided.approval.approvalId,
+    );
+    assert.equal(allowed.allowed, true);
+  });
+
+  it("rejects decide when payload materially changed (SEC-012)", () => {
+    const store = new GrantStore();
+    const { ws, human, agent } = humanAndAgent(store);
+    const grant = store.createGrant({
+      workspaceId: ws.workspaceId,
+      grantedBy: human.address,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      requiresApproval: true,
+    });
+    const request = store.createApprovalRequest({
+      workspaceId: ws.workspaceId,
+      grantId: grant.grantId,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      payloadHash: hashActionPayload({ body: "original" }),
+      expiresAt: "2099-01-01T00:00:00.000Z",
+    });
+    assert.throws(
+      () =>
+        store.decideApprovalRequest(request.requestId, {
+          approved: true,
+          payloadHash: hashActionPayload({ body: "changed" }),
+        }),
+      /materially changed/,
+    );
+  });
+
+  it("marks expired approval requests and rejects decide (SEC-012)", () => {
+    const store = new GrantStore();
+    const { ws, human, agent } = humanAndAgent(store);
+    const grant = store.createGrant({
+      workspaceId: ws.workspaceId,
+      grantedBy: human.address,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      requiresApproval: true,
+    });
+    const request = store.createApprovalRequest({
+      workspaceId: ws.workspaceId,
+      grantId: grant.grantId,
+      subject: agent.address,
+      resource: "github:repo:org/repo",
+      action: "issues.comment",
+      payloadHash: hashActionPayload({ body: "late" }),
+      expiresAt: "2026-02-01T00:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    const listed = store.listApprovalRequests({
+      workspaceId: ws.workspaceId,
+      status: "expired",
+      at: "2026-03-01T00:00:00.000Z",
+    });
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0]!.status, "expired");
+    assert.throws(
+      () =>
+        store.decideApprovalRequest(request.requestId, {
+          approved: true,
+          decidedAt: "2026-03-01T00:00:00.000Z",
+        }),
+      /expired/,
+    );
+  });
 });

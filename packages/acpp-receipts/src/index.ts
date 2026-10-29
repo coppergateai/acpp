@@ -59,6 +59,19 @@ export function executionOutcomeFromGithub(result: {
   if (result.error === "unauthorized") {
     return { status: "denied", reason: "policy_denied" };
   }
+  if (
+    result.error === "outcome_unknown" ||
+    result.error === "timeout" ||
+    result.error === "aborted" ||
+    result.error === "network_error"
+  ) {
+    return {
+      status: "unknown",
+      note: result.error === "timeout"
+        ? "Downstream timed out; side effect may have completed"
+        : "Downstream response lost or ambiguous; side effect may have completed",
+    };
+  }
   return { status: "failed", error: result.error ?? "execution_failed" };
 }
 

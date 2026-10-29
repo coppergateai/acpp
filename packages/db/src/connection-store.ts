@@ -187,6 +187,90 @@ export class ConnectionStore {
     return row ? [row] : [];
   }
 
+  /**
+   * Rotate GitHub credential: new credentialRef, invalidate prior vault entry (P-021).
+   */
+  rotateGithubCredential(
+    connectionId: string,
+    workspaceId: WorkspaceId,
+    newAccessToken: string,
+  ): StoredGithubConnection {
+    if (!newAccessToken.trim()) {
+      throw new Error("accessToken is required");
+    }
+    const row = this.#connections.get(connectionId);
+    if (!row || row.workspaceId !== workspaceId) {
+      throw new Error(`Unknown GitHub connection: ${connectionId}`);
+    }
+    this.#credentialVault.delete(row.credentialRef);
+    const credentialRef = generateCredentialRef();
+    this.#credentialVault.set(credentialRef, newAccessToken.trim());
+    const updated: StoredGithubConnection = {
+      ...row,
+      credentialRef,
+    };
+    this.#connections.set(connectionId, updated);
+    return updated;
+  }
+
+  /**
+   * Revoke GitHub connection: drop vault entry and workspace mapping so resolve fails.
+   */
+  revokeGithubConnection(
+    connectionId: string,
+    workspaceId: WorkspaceId,
+  ): StoredGithubConnection {
+    const row = this.#connections.get(connectionId);
+    if (!row || row.workspaceId !== workspaceId) {
+      throw new Error(`Unknown GitHub connection: ${connectionId}`);
+    }
+    this.#credentialVault.delete(row.credentialRef);
+    this.#connections.delete(connectionId);
+    if (this.#byWorkspaceGithub.get(workspaceId) === connectionId) {
+      this.#byWorkspaceGithub.delete(workspaceId);
+    }
+    return row;
+  }
+
+  rotateMcpCredential(
+    connectionId: string,
+    workspaceId: WorkspaceId,
+    newAccessToken: string,
+  ): StoredMcpConnection {
+    if (!newAccessToken.trim()) {
+      throw new Error("accessToken is required");
+    }
+    const row = this.#mcpConnections.get(connectionId);
+    if (!row || row.workspaceId !== workspaceId) {
+      throw new Error(`Unknown MCP connection: ${connectionId}`);
+    }
+    this.#credentialVault.delete(row.credentialRef);
+    const credentialRef = generateCredentialRef();
+    this.#credentialVault.set(credentialRef, newAccessToken.trim());
+    const updated: StoredMcpConnection = {
+      ...row,
+      credentialRef,
+    };
+    this.#mcpConnections.set(connectionId, updated);
+    return updated;
+  }
+
+  revokeMcpConnection(
+    connectionId: string,
+    workspaceId: WorkspaceId,
+  ): StoredMcpConnection {
+    const row = this.#mcpConnections.get(connectionId);
+    if (!row || row.workspaceId !== workspaceId) {
+      throw new Error(`Unknown MCP connection: ${connectionId}`);
+    }
+    this.#credentialVault.delete(row.credentialRef);
+    this.#mcpConnections.delete(connectionId);
+    if (this.#byWorkspaceMcp.get(workspaceId) === connectionId) {
+      this.#byWorkspaceMcp.delete(workspaceId);
+    }
+    return row;
+  }
+
   /** Internal: resolve token for authorized server-side execution only. */
   resolveCredential(credentialRef: string): string | undefined {
     return this.#credentialVault.get(credentialRef);
