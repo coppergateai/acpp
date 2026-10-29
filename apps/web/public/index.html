@@ -1,0 +1,1733 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ACPP — Identity for AI agents</title>
+  <meta name="description" content="Open protocol for verifiable AI agent identity, explicit permissions, signed signals, authorized actions, and verifiable execution receipts." />
+  <meta name="theme-color" content="#070B14" />
+  <link rel="canonical" href="https://acpp.coppergate.ai/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://acpp.coppergate.ai/" />
+  <meta property="og:title" content="ACPP — Identity for AI agents" />
+  <meta property="og:description" content="Open protocol for verifiable AI agent identity, explicit permissions, signed signals, authorized actions, and verifiable execution receipts." />
+  <meta property="og:site_name" content="ACPP" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="ACPP — Identity for AI agents" />
+  <meta name="twitter:description" content="Open protocol for verifiable AI agent identity, explicit permissions, signed signals, authorized actions, and verifiable execution receipts." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+:root {
+  --ink: #070B14;
+  --ink-elevated: #0C1220;
+  --ink-soft: #121A2B;
+  --line: rgba(148, 163, 184, 0.16);
+  --line-strong: rgba(148, 163, 184, 0.28);
+  --paper: #F6F7FA;
+  --paper-pure: #FFFFFF;
+  --muted: #9AA3B5;
+  --muted-strong: #B4BBC9;
+  --text: #E8ECF4;
+  --text-dark: #0F172A;
+  --accent: #4F8CFF;
+  --accent-soft: rgba(79, 140, 255, 0.14);
+  --accent-glow: rgba(79, 140, 255, 0.35);
+  --success: #2FA36B;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --font: "Outfit", "IBM Plex Sans", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --max: 1120px;
+  --nav-h: 68px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--nav-h) + 14px);
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; }
+code, .mono { font-family: var(--font-mono); }
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  z-index: 100;
+}
+.skip-link:focus { left: 1rem; top: 1rem; }
+
+.container {
+  width: min(100% - 2.5rem, var(--max));
+  margin-inline: auto;
+}
+
+/* —— Brand mark —— */
+.acpp-mark-fill { fill: #0B1220; }
+.acpp-mark-stroke { fill: none; stroke: var(--accent); }
+.acpp-mark-node { fill: var(--accent); }
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-family: var(--font);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-size: 1.05rem;
+}
+.brand-word { color: var(--text); }
+.site-header.on-light {
+  background: rgba(246, 247, 250, 0.88);
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+.site-header.on-light.is-scrolled {
+  background: rgba(246, 247, 250, 0.94);
+}
+.site-header.on-light .brand-word { color: var(--text-dark); }
+.site-header.on-light .acpp-mark-fill { fill: #EEF3FF; }
+.site-header.on-light .nav-links a { color: #5B657A; }
+.site-header.on-light .nav-links a:hover { color: var(--text-dark); }
+.site-header.on-light .btn-ghost { color: #5B657A; }
+.site-header.on-light .btn-ghost:hover { color: var(--text-dark); }
+.site-header.on-light .btn-primary {
+  background: var(--ink);
+  color: #fff;
+}
+.site-header.on-light .btn-primary:hover { background: #151D2E; }
+.site-header.on-light .nav-toggle {
+  color: var(--text-dark);
+  border-color: rgba(15, 23, 42, 0.14);
+}
+.site-header.on-light .mobile-nav {
+  background: rgba(246, 247, 250, 0.98);
+  border-top-color: rgba(15, 23, 42, 0.08);
+}
+.site-header.on-light .mobile-nav a {
+  color: #5B657A;
+  border-bottom-color: rgba(15, 23, 42, 0.08);
+}
+
+/* —— Buttons —— */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-family: var(--font);
+  font-weight: 560;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: background 160ms var(--ease), border-color 160ms var(--ease), color 160ms var(--ease), transform 160ms var(--ease);
+}
+.btn:focus-visible, .nav-links a:focus-visible, .icon-btn:focus-visible, .step-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.btn-primary {
+  background: #fff;
+  color: var(--ink);
+}
+.btn-primary:hover { background: #E8ECF4; }
+.btn-secondary {
+  background: transparent;
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.btn-secondary:hover { border-color: var(--muted-strong); background: rgba(255,255,255,0.04); }
+.btn-ghost {
+  background: transparent;
+  color: var(--muted-strong);
+}
+.btn-ghost:hover { color: var(--text); }
+.btn-dark {
+  background: var(--ink);
+  color: #fff;
+}
+.btn-dark:hover { background: #151D2E; }
+.btn-outline-dark {
+  border-color: rgba(15, 23, 42, 0.18);
+  color: var(--text-dark);
+  background: transparent;
+}
+.btn-outline-dark:hover { background: rgba(15,23,42,0.04); }
+
+/* —— Header —— */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  min-height: var(--nav-h);
+  backdrop-filter: blur(14px);
+  background: rgba(7, 11, 20, 0.72);
+  border-bottom: 1px solid transparent;
+  transition: background 200ms var(--ease), border-color 200ms var(--ease);
+}
+.site-header .nav-inner { min-height: var(--nav-h); }
+.site-header.is-scrolled {
+  border-bottom-color: var(--line);
+  background: rgba(7, 11, 20, 0.88);
+}
+.site-header .nav-inner {
+  width: min(100% - 2.5rem, var(--max));
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+}
+.nav-links {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 1.15rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.nav-links a {
+  color: var(--muted-strong);
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+.nav-links a:hover { color: var(--text); }
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.nav-actions .btn { min-height: 38px; padding: 0.45rem 1rem; font-size: 0.88rem; }
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.nav-toggle svg { width: 18px; height: 18px; }
+.mobile-nav {
+  display: none;
+  border-top: 1px solid var(--line);
+  background: rgba(7, 11, 20, 0.96);
+  padding: 1rem 1.25rem 1.25rem;
+}
+.mobile-nav.open { display: block; }
+.mobile-nav a {
+  display: block;
+  padding: 0.75rem 0.25rem;
+  color: var(--muted-strong);
+  border-bottom: 1px solid var(--line);
+}
+.mobile-nav a:last-child { border-bottom: 0; }
+.mobile-nav .btn { width: 100%; margin-top: 0.75rem; }
+
+@media (min-width: 1040px) {
+  .nav-links { display: flex; }
+  .nav-toggle { display: none; }
+  .mobile-nav { display: none !important; }
+  .nav-actions .btn-ghost { display: inline-flex; }
+}
+@media (max-width: 1039px) {
+  .nav-inner { grid-template-columns: 1fr auto; }
+  .nav-actions .btn-ghost { display: none; }
+}
+
+/* —— Hero —— */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 3.5rem 0 4.5rem;
+  background:
+    radial-gradient(ellipse 70% 55% at 70% 35%, rgba(79,140,255,0.18), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(79,140,255,0.08), transparent 55%),
+    linear-gradient(180deg, #070B14 0%, #0A1020 100%);
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 20%, transparent 75%);
+  pointer-events: none;
+}
+.hero-grid {
+  position: relative;
+  display: grid;
+  gap: 3rem;
+  align-items: center;
+}
+.hero-grid > * { min-width: 0; }
+@media (min-width: 980px) {
+  .hero-grid { grid-template-columns: 1.05fr 0.95fr; gap: 2.5rem; }
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.1rem;
+}
+.hero h1 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: clamp(2.4rem, 5.2vw, 3.75rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+  font-weight: 600;
+  color: #fff;
+}
+.hero .support {
+  margin: 1rem 0 0;
+  font-family: var(--font);
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--muted-strong);
+}
+.hero .lead {
+  margin: 1.25rem 0 0;
+  max-width: 36rem;
+  color: var(--muted);
+  font-size: 1.02rem;
+}
+.hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+.hero-micro {
+  margin-top: 1.25rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+/* —— Protocol viz —— */
+.protocol-viz {
+  position: relative;
+  min-height: 360px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(79,140,255,0.16), transparent 45%),
+    linear-gradient(160deg, rgba(18,26,43,0.9), rgba(10,16,32,0.95));
+  overflow: hidden;
+}
+.protocol-viz svg.viz-canvas {
+  width: 100%;
+  height: auto;
+  min-height: 360px;
+}
+.viz-node {
+  fill: rgba(10, 14, 26, 0.94);
+  stroke: rgba(79, 140, 255, 0.28);
+  stroke-width: 1;
+}
+.viz-node-label {
+  fill: #D5DBE8;
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 560;
+}
+.viz-icon { color: var(--accent); }
+.viz-center {
+  fill: #0B1220;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  filter: drop-shadow(0 0 22px var(--accent-glow));
+}
+.viz-center-inner {
+  fill: none;
+  stroke: rgba(79, 140, 255, 0.45);
+  stroke-width: 1;
+}
+.viz-center-dot { fill: var(--accent); }
+.viz-center-label {
+  fill: #fff;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+.viz-link {
+  fill: none;
+  stroke: rgba(79,140,255,0.35);
+  stroke-width: 1.25;
+}
+.viz-pulse {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 120;
+  stroke-linecap: round;
+  animation: signal-pulse 3.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .viz-pulse { animation: none; stroke-dasharray: none; opacity: 0.45; }
+}
+@keyframes signal-pulse {
+  to { stroke-dashoffset: -124; }
+}
+.flow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0 1rem 1.15rem;
+  margin-top: -0.5rem;
+}
+.flow-chip {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted-strong);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  background: rgba(255,255,255,0.02);
+}
+.flow-chip strong { color: var(--text); font-weight: 560; }
+.flow-chip .sep { color: var(--accent); margin: 0 0.15rem; }
+
+/* —— Sections —— */
+.section {
+  padding: 5rem 0;
+  scroll-margin-top: calc(var(--nav-h) + 14px);
+}
+.section-dark {
+  background: var(--ink);
+  color: var(--text);
+}
+.section-light {
+  background: var(--paper);
+  color: var(--text-dark);
+}
+.section-elevated {
+  background: var(--ink-elevated);
+}
+.section-kicker {
+  margin: 0 0 0.75rem;
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.section-light .section-kicker { color: #3B6FE0; }
+.section h2 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: clamp(1.75rem, 3.4vw, 2.45rem);
+  line-height: 1.22;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  max-width: 26ch;
+}
+.section-light h2 { color: var(--text-dark); }
+.section .section-lead {
+  margin: 1rem 0 0;
+  max-width: 40rem;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+.section-light .section-lead { color: #5B657A; }
+
+/* —— Principles —— */
+.principles {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+@media (min-width: 800px) {
+  .principles { grid-template-columns: repeat(3, 1fr); }
+}
+.principle {
+  position: relative;
+  padding: 0 0 0 1.15rem;
+  border: 0;
+  border-left: 2px solid rgba(59, 111, 224, 0.35);
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
+}
+.principle h3 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  font-weight: 620;
+  color: var(--text-dark);
+}
+.principle p {
+  margin: 0.65rem 0 0;
+  color: #5B657A;
+  font-size: 0.95rem;
+}
+.principle-diagram {
+  margin-top: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: #7A8499;
+}
+.principle-diagram span {
+  border: 1px solid rgba(15,23,42,0.1);
+  border-radius: 6px;
+  padding: 0.3rem 0.45rem;
+  background: #F0F3F8;
+}
+.principle-diagram .x {
+  color: #C44;
+  border-color: transparent;
+  background: transparent;
+  padding: 0;
+}
+
+/* —— Scenario —— */
+.scenario-layout {
+  display: grid;
+  gap: 1.75rem;
+  margin-top: 2.5rem;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .scenario-layout { grid-template-columns: 1.2fr 0.8fr; gap: 2.25rem; }
+}
+.scenario-beats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+  border-left: 1px solid var(--line);
+}
+.scenario-beat {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  padding: 1rem 0 1rem 1.25rem;
+  position: relative;
+  animation: scenario-in 560ms var(--ease) both;
+  animation-delay: calc(var(--beat-i, 0) * 70ms);
+}
+.scenario-beat::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 1.35rem;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.12);
+}
+@keyframes scenario-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.scenario-beat-index {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+  margin-top: 0.15rem;
+}
+.scenario-beat-who {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-strong);
+}
+.scenario-beat-what {
+  margin: 0.35rem 0 0;
+  color: var(--muted-strong);
+  font-size: 0.98rem;
+  max-width: 36rem;
+  line-height: 1.55;
+}
+.scenario-stage {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(79, 140, 255, 0.14), transparent 55%),
+    rgba(255, 255, 255, 0.02);
+  padding: 1.4rem 1.3rem 1.35rem;
+}
+@media (min-width: 900px) {
+  .scenario-stage {
+    position: sticky;
+    top: calc(var(--nav-h) + 1rem);
+  }
+}
+.scenario-stage-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+.scenario-stage h3 {
+  margin: 0.55rem 0 0;
+  font-family: var(--font);
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.scenario-facts {
+  margin: 1.15rem 0 0;
+  display: grid;
+  gap: 0.45rem;
+}
+.scenario-facts div {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.65rem;
+  align-items: baseline;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(7, 11, 20, 0.35);
+  font-size: 0.78rem;
+}
+.scenario-facts dt {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+.scenario-facts dd {
+  margin: 0;
+  color: var(--text);
+  word-break: break-all;
+}
+.scenario-outcome {
+  margin: 1.15rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--success);
+  font-size: 0.88rem;
+  font-weight: 560;
+}
+.scenario-outcome .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 4px rgba(47, 163, 107, 0.15);
+  flex-shrink: 0;
+}
+.scenario-link {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 520;
+}
+.scenario-link:hover { text-decoration: underline; }
+
+/* —— Layers —— */
+.layers {
+  margin-top: 2.5rem;
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.layer {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 1.15rem 1.05rem 1.2rem;
+  background: rgba(255,255,255,0.02);
+  transition: border-color 160ms var(--ease), background 160ms var(--ease);
+  min-width: 0;
+}
+.layer:hover, .layer:focus-within {
+  border-color: color-mix(in srgb, var(--layer-accent) 55%, transparent);
+  background: rgba(255,255,255,0.035);
+}
+.layer-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--layer-accent);
+  margin: 0 0 0.55rem;
+}
+.layer-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--layer-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--layer-accent) 22%, transparent);
+  margin-bottom: 0.75rem;
+}
+.layer h3 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+.layer p {
+  margin: 0.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.22rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted-strong);
+}
+.badge-available { color: #6EE7A8; border-color: rgba(47,163,107,0.35); background: rgba(47,163,107,0.08); }
+.badge-partial { color: #F0C674; border-color: rgba(232,184,74,0.35); background: rgba(232,184,74,0.08); }
+.badge-conceptual, .badge-planned { color: var(--muted); border-color: var(--line); }
+.badge-experimental { color: #9DB7FF; border-color: rgba(79,140,255,0.35); background: var(--accent-soft); }
+
+.layers-mobile-note {
+  display: none;
+}
+
+/* —— Developers —— */
+.dev-grid {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+  align-items: stretch;
+}
+@media (min-width: 960px) {
+  .dev-grid { grid-template-columns: 1.15fr 0.85fr; }
+}
+.code-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: #080D18;
+  overflow: hidden;
+  min-width: 0;
+}
+.code-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255,255,255,0.02);
+}
+.code-toolbar .lang {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.icon-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted-strong);
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--line-strong); }
+.icon-btn.copied { color: var(--success); border-color: rgba(47,163,107,0.4); }
+.code-body {
+  margin: 0;
+  padding: 1rem 0.9rem 1.2rem;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #C9D2E3;
+}
+.code-body .kw { color: #7EB6FF; }
+.code-body .str { color: #9AD4A8; }
+.code-body .cm { color: #6B7388; }
+.code-body .fn { color: #D4B483; }
+.dev-aside {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.02);
+  padding: 1.4rem 1.3rem;
+}
+.dev-aside h3 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+.dev-aside p { margin: 0.7rem 0 0; color: var(--muted); font-size: 0.95rem; }
+.dev-aside ol {
+  margin: 1.1rem 0 0;
+  padding: 0 0 0 1.1rem;
+  color: var(--muted-strong);
+  font-size: 0.9rem;
+}
+.dev-aside li { margin: 0.4rem 0; }
+.dev-aside .btn { margin-top: 1.25rem; }
+
+/* —— Example timeline —— */
+.example-grid {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+@media (min-width: 900px) {
+  .example-grid { grid-template-columns: 1.1fr 0.9fr; }
+}
+.demo-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #3B6FE0;
+  background: rgba(59,111,224,0.08);
+  border: 1px solid rgba(59,111,224,0.18);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+}
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(15,23,42,0.08);
+  border-radius: var(--radius-md);
+  background: #fff;
+  overflow: hidden;
+}
+.step-tab {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid rgba(15,23,42,0.06);
+  background: transparent;
+  padding: 0.78rem 1.1rem;
+  cursor: pointer;
+  color: var(--text-dark);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+.step-tab:last-child { border-bottom: 0; }
+.step-tab[aria-selected="true"] {
+  background: #F0F5FF;
+}
+.step-index {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: #3B6FE0;
+  margin-top: 0.2rem;
+}
+.step-tab strong {
+  display: block;
+  font-family: var(--font);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.step-tab .detail {
+  display: none;
+}
+.receipt-card {
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(15,23,42,0.08);
+  background: #fff;
+  padding: 1.35rem 1.25rem;
+}
+@media (min-width: 900px) {
+  .receipt-card {
+    position: sticky;
+    top: calc(var(--nav-h) + 1rem);
+  }
+}
+.receipt-card h3 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+.receipt-meta {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.receipt-meta div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  background: #F4F6FA;
+}
+.receipt-meta dt { color: #7A8499; }
+.receipt-meta dd { margin: 0; color: var(--text-dark); font-weight: 520; }
+.receipt-status {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--success);
+  font-weight: 560;
+  font-size: 0.9rem;
+}
+.receipt-status .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 4px rgba(47,163,107,0.15);
+}
+
+/* —— Integrations —— */
+.integrations {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+@media (min-width: 800px) {
+  .integrations { grid-template-columns: repeat(3, 1fr); }
+}
+.integration {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 1.35rem 1.25rem;
+  background: rgba(255,255,255,0.02);
+}
+.integration-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.integration h3 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+.integration p {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.integration a.more {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 520;
+}
+.integration a.more:hover { text-decoration: underline; }
+
+/* —— Architecture —— */
+.arch {
+  margin-top: 2.5rem;
+  display: grid;
+  gap: 0.75rem;
+  max-width: 640px;
+}
+.arch-layer {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  padding: 1.15rem 1.25rem;
+  text-align: center;
+}
+.arch-layer strong {
+  display: block;
+  font-family: var(--font);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+}
+.arch-layer span { color: var(--muted); font-size: 0.88rem; }
+.arch-apps { background: rgba(255,255,255,0.02); }
+.arch-acpp {
+  background: linear-gradient(180deg, rgba(79,140,255,0.12), rgba(79,140,255,0.04));
+  border-color: rgba(79,140,255,0.35);
+}
+.arch-tools { background: rgba(255,255,255,0.02); }
+.arch-arrow {
+  text-align: center;
+  color: var(--accent);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* —— Final CTA —— */
+.final-cta {
+  position: relative;
+  overflow: hidden;
+  padding: 5.5rem 0;
+  text-align: center;
+  background:
+    radial-gradient(ellipse 50% 70% at 85% 100%, rgba(79,140,255,0.22), transparent 55%),
+    radial-gradient(ellipse 40% 50% at 10% 0%, rgba(79,140,255,0.1), transparent 50%),
+    var(--ink);
+}
+.final-cta .final-mark { margin-inline: auto; }
+.final-cta h2 {
+  margin: 0 auto;
+  max-width: 18ch;
+  font-family: var(--font);
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  font-weight: 600;
+}
+.final-cta p {
+  margin: 1rem auto 0;
+  max-width: 34rem;
+  color: var(--muted);
+}
+.final-cta .hero-ctas { justify-content: center; }
+
+/* —— Footer —— */
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding: 3rem 0 2.5rem;
+  background: #05080F;
+}
+.footer-grid {
+  display: grid;
+  gap: 2rem;
+}
+@media (min-width: 800px) {
+  .footer-grid { grid-template-columns: 1.4fr 1fr 1fr; }
+}
+.footer-brand p {
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+  max-width: 28rem;
+  font-size: 0.92rem;
+}
+.footer-col h4 {
+  margin: 0 0 0.85rem;
+  font-family: var(--font);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+.footer-col ul { list-style: none; margin: 0; padding: 0; }
+.footer-col li { margin: 0.45rem 0; }
+.footer-col a { color: var(--muted-strong); font-size: 0.92rem; }
+.footer-col a:hover { color: var(--text); }
+.footer-bottom {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 480px) {
+  .container, .site-header .nav-inner { width: min(100% - 1.5rem, var(--max)); }
+  .hero { padding-top: 2.5rem; }
+  .section { padding: 3.5rem 0; }
+}
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#top">Skip to content</a>
+  
+<header class="site-header" id="site-header">
+  <div class="nav-inner">
+    <a href="/" class="brand" aria-label="ACPP home">
+    <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ACPP">
+  <title>ACPP</title>
+  <path class="acpp-mark-fill" d="M16 1.5 28.5 8.5v15L16 30.5 3.5 23.5v-15L16 1.5Z"/>
+  <path class="acpp-mark-stroke" stroke-width="1.5" d="M16 1.5 28.5 8.5v15L16 30.5 3.5 23.5v-15L16 1.5Z"/>
+  <path class="acpp-mark-stroke" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M11 16.5c0-3 2.1-5 5-5s5 2 5 5c0 2.2-1.2 3.8-3.2 4.5L16 23l-1.8-2c-2-.7-3.2-2.3-3.2-4.5Z"/>
+  <circle class="acpp-mark-node" cx="16" cy="16.2" r="1.6"/>
+</svg>
+    <span class="brand-word">ACPP</span>
+  </a>
+    <ul class="nav-links" role="list">
+      <li><a href="#protocol">Protocol</a></li>
+      <li><a href="#scenario">Scenario</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#developers">Developers</a></li>
+      <li><a href="#integrations">Integrations</a></li>
+    </ul>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="https://github.com/coppergateai/acpp" rel="noopener noreferrer">GitHub</a>
+      <a class="btn btn-primary" href="https://github.com/coppergateai/acpp/blob/main/docs/QUICKSTART.md">Get Started</a>
+      <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="mobile-nav" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="mobile-nav" id="mobile-nav" hidden>
+    <a href="#protocol">Protocol</a>
+    <a href="#scenario">Scenario</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#developers">Developers</a>
+    <a href="#integrations">Integrations</a>
+    <a href="https://github.com/coppergateai/acpp/tree/main/docs/protocol">Documentation</a>
+    <a href="https://github.com/coppergateai/acpp" rel="noopener noreferrer">GitHub</a>
+    <a class="btn btn-primary" href="https://github.com/coppergateai/acpp/blob/main/docs/QUICKSTART.md">Get Started</a>
+  </div>
+</header>
+  <main>
+    
+<section class="hero" id="top">
+  <div class="container hero-grid">
+    <div>
+      <p class="eyebrow">Open Protocol · Agent Identity &amp; Proof</p>
+      <h1>Identity for AI agents.</h1>
+      <p class="support">Verifiable identity. Explicit permissions. Accountable actions.</p>
+      <p class="lead">ACPP gives agents a cryptographically verifiable identity, scoped permissions, and receipts for every consequential action — starting with GitHub.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="https://github.com/coppergateai/acpp/blob/main/docs/QUICKSTART.md">Get Started <span aria-hidden="true">→</span></a>
+        <a class="btn btn-secondary" href="#scenario">See a real scenario</a>
+      </div>
+    </div>
+    
+<div class="protocol-viz" role="img" aria-label="ACPP protocol node connecting Identity, Discovery, Signals, Authorization, Action, and Receipts. Flow: Agent to Identity to Permission to Action to Receipt.">
+  <svg class="viz-canvas" viewBox="0 0 420 340" role="presentation">
+    <defs>
+      <radialGradient id="vizGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#4F8CFF" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#4F8CFF" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="210" cy="168" r="78" fill="url(#vizGlow)"/>
+    <line class="viz-link" x1="210" y1="168" x2="210" y2="36" /><line class="viz-pulse" x1="210" y1="168" x2="210" y2="36" style="animation-delay:0.00s" /><line class="viz-link" x1="210" y1="168" x2="348" y2="108" /><line class="viz-pulse" x1="210" y1="168" x2="348" y2="108" style="animation-delay:0.45s" /><line class="viz-link" x1="210" y1="168" x2="348" y2="232" /><line class="viz-pulse" x1="210" y1="168" x2="348" y2="232" style="animation-delay:0.90s" /><line class="viz-link" x1="210" y1="168" x2="210" y2="300" /><line class="viz-pulse" x1="210" y1="168" x2="210" y2="300" style="animation-delay:1.35s" /><line class="viz-link" x1="210" y1="168" x2="72" y2="232" /><line class="viz-pulse" x1="210" y1="168" x2="72" y2="232" style="animation-delay:1.80s" /><line class="viz-link" x1="210" y1="168" x2="72" y2="108" /><line class="viz-pulse" x1="210" y1="168" x2="72" y2="108" style="animation-delay:2.25s" />
+    <g transform="translate(210, 168)">
+      <polygon class="viz-center" points="0,-48 42,-24 42,24 0,48 -42,24 -42,-24"/>
+      <polygon class="viz-center-inner" points="0,-28 24,-14 24,14 0,28 -24,14 -24,-14"/>
+      <circle class="viz-center-dot" cx="0" cy="0" r="4"/>
+      <text class="viz-center-label" y="56" text-anchor="middle">ACPP</text>
+    </g>
+    <g transform="translate(210, 36)"><rect class="viz-node" x="-58" y="-22" width="116" height="44" rx="12"/><g class="viz-icon" transform="translate(-40, 0)" color="#4F8CFF"><circle cx="0" cy="0" r="3.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="0" cy="0" r="1.1" fill="currentColor"/></g><text class="viz-node-label" x="8" y="1" text-anchor="start" dominant-baseline="central">Identity</text></g><g transform="translate(348, 108)"><rect class="viz-node" x="-58" y="-22" width="116" height="44" rx="12"/><g class="viz-icon" transform="translate(-40, 0)" color="#4F8CFF"><circle cx="-1" cy="-1" r="3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M1.2 1.2 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></g><text class="viz-node-label" x="8" y="1" text-anchor="start" dominant-baseline="central">Discovery</text></g><g transform="translate(348, 232)"><rect class="viz-node" x="-58" y="-22" width="116" height="44" rx="12"/><g class="viz-icon" transform="translate(-40, 0)" color="#4F8CFF"><path d="M-4 1.5c2-3 6-3 8 0M-2.2 2.8c1.2-1.8 3.2-1.8 4.4 0" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="0" cy="4" r="1.1" fill="currentColor"/></g><text class="viz-node-label" x="8" y="1" text-anchor="start" dominant-baseline="central">Signals</text></g><g transform="translate(210, 300)"><rect class="viz-node" x="-58" y="-22" width="116" height="44" rx="12"/><g class="viz-icon" transform="translate(-40, 0)" color="#4F8CFF"><path d="M0-4.5 4-2.5v3.2c0 2.4-1.6 3.8-4 4.8-2.4-1-4-2.4-4-4.8v-3.2Z" fill="none" stroke="currentColor" stroke-width="1.3"/></g><text class="viz-node-label" x="8" y="1" text-anchor="start" dominant-baseline="central">Authorization</text></g><g transform="translate(72, 232)"><rect class="viz-node" x="-58" y="-22" width="116" height="44" rx="12"/><g class="viz-icon" transform="translate(-40, 0)" color="#4F8CFF"><path d="M1.2-4.5-3.2.8h3L-1.2 4.5 3.5-.5h-3Z" fill="currentColor"/></g><text class="viz-node-label" x="8" y="1" text-anchor="start" dominant-baseline="central">Action</text></g><g transform="translate(72, 108)"><rect class="viz-node" x="-58" y="-22" width="116" height="44" rx="12"/><g class="viz-icon" transform="translate(-40, 0)" color="#4F8CFF"><rect x="-3.2" y="-4.2" width="6.4" height="8.4" rx="1.1" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M-1.4-1.2h2.8M-1.4.8h2.8M-1.4 2.8h1.6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></g><text class="viz-node-label" x="8" y="1" text-anchor="start" dominant-baseline="central">Receipts</text></g>
+  </svg>
+  <div class="flow-strip">
+    <span class="flow-chip"><strong>Agent</strong></span>
+    <span class="flow-chip sep" aria-hidden="true">→</span>
+    <span class="flow-chip"><strong>Identity</strong></span>
+    <span class="flow-chip sep" aria-hidden="true">→</span>
+    <span class="flow-chip"><strong>Permission</strong></span>
+    <span class="flow-chip sep" aria-hidden="true">→</span>
+    <span class="flow-chip"><strong>Action</strong></span>
+    <span class="flow-chip sep" aria-hidden="true">→</span>
+    <span class="flow-chip"><strong>Receipt</strong></span>
+  </div>
+</div>
+  </div>
+</section>
+    
+<section class="section section-light" id="protocol" aria-labelledby="principles-title">
+  <div class="container">
+    <p class="section-kicker">Trust principles</p>
+    <h2 id="principles-title">Identity is not authority.</h2>
+    <p class="section-lead">Three separations that keep agent systems accountable.</p>
+    <div class="principles">
+      <article class="principle">
+        <h3>Identity ≠ Authority</h3>
+        <p>Knowing which agent is acting does not automatically grant it permission. Every protected action is evaluated against an explicit grant.</p>
+        <div class="principle-diagram" aria-hidden="true">
+          <span>who</span><span class="x">≠</span><span>may act</span>
+        </div>
+      </article>
+      <article class="principle">
+        <h3>Discovery ≠ Consent</h3>
+        <p>Finding an agent or capability does not authorize interaction or execution. Discovery returns only what policy already permits.</p>
+        <div class="principle-diagram" aria-hidden="true">
+          <span>find</span><span class="x">≠</span><span>consent</span>
+        </div>
+      </article>
+      <article class="principle">
+        <h3>Signal ≠ Execution</h3>
+        <p>A signed signal communicates intent or information. Execution requires the authorization path — signals never bypass policy.</p>
+        <div class="principle-diagram" aria-hidden="true">
+          <span>intent</span><span class="x">≠</span><span>execute</span>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+    
+<section class="section section-dark section-elevated" id="scenario" aria-labelledby="scenario-title">
+  <div class="container">
+    <p class="section-kicker">Real-life scenario</p>
+    <h2 id="scenario-title">A triage agent comments on a GitHub issue.</h2>
+    <p class="section-lead">Your platform team connects GitHub once. An incident-response agent gets a narrow grant to post on issues — not the org token. Every comment leaves a receipt; revoke the grant and the next attempt is denied.</p>
+    <div class="scenario-layout">
+      <ol class="scenario-beats" role="list">
+<li class="scenario-beat" style="--beat-i:0">
+  <span class="scenario-beat-index" aria-hidden="true">01</span>
+  <div>
+    <p class="scenario-beat-who">Ops</p>
+    <p class="scenario-beat-what">An alert opens issue #4821. Someone needs a status note on the thread — not a human hunting for a shared PAT.</p>
+  </div>
+</li>
+<li class="scenario-beat" style="--beat-i:1">
+  <span class="scenario-beat-index" aria-hidden="true">02</span>
+  <div>
+    <p class="scenario-beat-who">Agent</p>
+    <p class="scenario-beat-what">TriageBot sends a signed signal: comment on #4821 with the latest findings.</p>
+  </div>
+</li>
+<li class="scenario-beat" style="--beat-i:2">
+  <span class="scenario-beat-index" aria-hidden="true">03</span>
+  <div>
+    <p class="scenario-beat-who">ACPP</p>
+    <p class="scenario-beat-what">Verifies the agent identity, evaluates the grant (issues.comment only), and allows the action.</p>
+  </div>
+</li>
+<li class="scenario-beat" style="--beat-i:3">
+  <span class="scenario-beat-index" aria-hidden="true">04</span>
+  <div>
+    <p class="scenario-beat-who">GitHub</p>
+    <p class="scenario-beat-what">The comment posts through the workspace connection. Credential never sits on the agent.</p>
+  </div>
+</li>
+<li class="scenario-beat" style="--beat-i:4">
+  <span class="scenario-beat-index" aria-hidden="true">05</span>
+  <div>
+    <p class="scenario-beat-who">Receipt</p>
+    <p class="scenario-beat-what">Audit trail links signal → decision → outcome. Later, security revokes the grant — the next comment returns deny.</p>
+  </div>
+</li></ol>
+      <aside class="scenario-stage" aria-label="Scenario setup">
+        <p class="scenario-stage-label">Monday · payments repo</p>
+        <h3>#4821 · checkout latency spike</h3>
+        <dl class="scenario-facts">
+          <div><dt>Agent</dt><dd class="mono">acpp:agent:triage-bot</dd></div>
+          <div><dt>Resource</dt><dd class="mono">github:repo:acme/payments</dd></div>
+          <div><dt>Allowed</dt><dd class="mono">issues.comment</dd></div>
+          <div><dt>Not allowed</dt><dd class="mono">repos.write · deploy</dd></div>
+        </dl>
+        <p class="scenario-outcome"><span class="dot" aria-hidden="true"></span>Comment posted · receipt on file · revoke proves deny</p>
+        <a class="scenario-link" href="#example">See the protocol steps →</a>
+      </aside>
+    </div>
+  </div>
+</section>
+    
+<section class="section section-dark section-elevated" id="how-it-works" aria-labelledby="how-title">
+  <div class="container">
+    <p class="section-kicker">How ACPP works</p>
+    <h2 id="how-title">From agent identity to verifiable action.</h2>
+    <p class="section-lead">A protocol layer that separates identity, intent, authorization, execution, and evidence. Status labels reflect what ships in this repository today.</p>
+    <div class="layers">
+<article class="layer" style="--layer-accent:#4F8CFF" id="layer-identity">
+  <div class="layer-dot" aria-hidden="true"></div>
+  <p class="layer-num">01</p>
+  <h3>Identity</h3>
+  <p>Stable acpp:agent addresses, Ed25519 keys, rotation, and lifecycle.</p>
+  <span class="badge badge-available">Available</span>
+</article>
+<article class="layer" style="--layer-accent:#8B7CFF" id="layer-discovery">
+  <div class="layer-dot" aria-hidden="true"></div>
+  <p class="layer-num">02</p>
+  <h3>Discovery</h3>
+  <p>Resolve identities and permitted capabilities — discovery is not consent.</p>
+  <span class="badge badge-available">Available</span>
+</article>
+<article class="layer" style="--layer-accent:#3DCF8E" id="layer-signals">
+  <div class="layer-dot" aria-hidden="true"></div>
+  <p class="layer-num">03</p>
+  <h3>Signals</h3>
+  <p>Signed envelopes for events, requests, offers, responses, and revocations.</p>
+  <span class="badge badge-available">Available</span>
+</article>
+<article class="layer" style="--layer-accent:#6BA3D9" id="layer-trust">
+  <div class="layer-dot" aria-hidden="true"></div>
+  <p class="layer-num">04</p>
+  <h3>Trust</h3>
+  <p>Cryptographic identity proof today; richer trust relationships remain conceptual.</p>
+  <span class="badge badge-conceptual">Conceptual</span>
+</article>
+<article class="layer" style="--layer-accent:#E8B84A" id="layer-authorization">
+  <div class="layer-dot" aria-hidden="true"></div>
+  <p class="layer-num">05</p>
+  <h3>Authorization</h3>
+  <p>Deny-by-default grants, evaluate, expire, and revoke before any protected action.</p>
+  <span class="badge badge-available">Available</span>
+</article>
+<article class="layer" style="--layer-accent:#E85D5D" id="layer-action">
+  <div class="layer-dot" aria-hidden="true"></div>
+  <p class="layer-num">06</p>
+  <h3>Action</h3>
+  <p>GitHub connector executes gated ops; MCP invoke remains an experimental sketch.</p>
+  <span class="badge badge-partial">Partial</span>
+</article>
+<article class="layer" style="--layer-accent:#2FA36B" id="layer-receipts">
+  <div class="layer-dot" aria-hidden="true"></div>
+  <p class="layer-num">07</p>
+  <h3>Receipts</h3>
+  <p>Signal → verification → decision → outcome chain for accountable audit.</p>
+  <span class="badge badge-available">Available</span>
+</article></div>
+  </div>
+</section>
+    
+<section class="section section-dark" id="developers" aria-labelledby="dev-title">
+  <div class="container">
+    <p class="section-kicker">Developer experience</p>
+    <h2 id="dev-title">A protocol you can build on.</h2>
+    <p class="section-lead">Reference TypeScript SDK in the monorepo (<code class="mono">@acpp/sdk</code>). Packages are workspace-private today — clone the repo and run the local API.</p>
+    <div class="dev-grid">
+      <div class="code-panel">
+        <div class="code-toolbar">
+          <span class="lang">TypeScript · docs/protocol/sdk.md</span>
+          <button type="button" class="icon-btn" id="copy-code" data-copy-target="sdk-sample">Copy</button>
+        </div>
+        <pre class="code-body" id="sdk-sample" tabindex="0"><code><span class="kw">import</span> { <span class="fn">createActorAddress</span> } <span class="kw">from</span> <span class="str">&quot;@acpp/core&quot;</span>;
+<span class="kw">import</span> {
+  <span class="fn">AcppHostedClient</span>,
+  <span class="fn">generateEd25519KeyPair</span>,
+  <span class="fn">signSignalEnvelope</span>,
+  <span class="fn">verifySignalEnvelopeSignature</span>,
+} <span class="kw">from</span> <span class="str">&quot;@acpp/sdk&quot;</span>;
+
+<span class="kw">const</span> keys = <span class="fn">generateEd25519KeyPair</span>();
+<span class="kw">const</span> sender = <span class="fn">createActorAddress</span>(<span class="str">&quot;agent&quot;</span>, <span class="str">&quot;MYAGENT01&quot;</span>);
+
+<span class="kw">const</span> envelope = <span class="fn">signSignalEnvelope</span>(
+  {
+    signalId: <span class="str">&quot;sig_my_request_01&quot;</span>,
+    type: <span class="str">&quot;request&quot;</span>,
+    audience: <span class="fn">createActorAddress</span>(<span class="str">&quot;human&quot;</span>, <span class="str">&quot;owner&quot;</span>),
+    contentType: <span class="str">&quot;application/json&quot;</span>,
+    payload: { action: <span class="str">&quot;issues.comment&quot;</span>, repo: <span class="str">&quot;org/repo&quot;</span> },
+  },
+  { sender, publicKey: keys.publicKey, privateKey: keys.privateKey },
+);
+
+<span class="cm">// Identity proof ≠ permission to act</span>
+<span class="fn">verifySignalEnvelopeSignature</span>(envelope, keys.publicKey);
+
+<span class="kw">const</span> client = <span class="kw">new</span> <span class="fn">AcppHostedClient</span>({
+  baseUrl: <span class="str">&quot;http:<span class="cm">//127.0.0.1:8787&quot;</span>,</span>
+});
+<span class="kw">await</span> client.<span class="fn">submitSignal</span>(envelope);</code></pre>
+        <script type="text/plain" id="sdk-sample-raw">import { createActorAddress } from "@acpp/core";
+import {
+  AcppHostedClient,
+  generateEd25519KeyPair,
+  signSignalEnvelope,
+  verifySignalEnvelopeSignature,
+} from "@acpp/sdk";
+
+const keys = generateEd25519KeyPair();
+const sender = createActorAddress("agent", "MYAGENT01");
+
+const envelope = signSignalEnvelope(
+  {
+    signalId: "sig_my_request_01",
+    type: "request",
+    audience: createActorAddress("human", "owner"),
+    contentType: "application/json",
+    payload: { action: "issues.comment", repo: "org/repo" },
+  },
+  { sender, publicKey: keys.publicKey, privateKey: keys.privateKey },
+);
+
+// Identity proof ≠ permission to act
+verifySignalEnvelopeSignature(envelope, keys.publicKey);
+
+const client = new AcppHostedClient({
+  baseUrl: "http://127.0.0.1:8787",
+});
+await client.submitSignal(envelope);</script>
+      </div>
+      <aside class="dev-aside">
+        <h3>Local quickstart</h3>
+        <p>Prove allow and deny on your machine — no GitHub token required for the stub demo.</p>
+        <ol>
+          <li><code class="mono">pnpm install</code></li>
+          <li><code class="mono">pnpm --filter @acpp/api dev</code></li>
+          <li><code class="mono">pnpm --filter @acpp/example-quickstart demo</code></li>
+        </ol>
+        <a class="btn btn-secondary" href="https://github.com/coppergateai/acpp/blob/main/docs/QUICKSTART.md">Read the quickstart</a>
+        <a class="btn btn-ghost" href="https://github.com/coppergateai/acpp/blob/main/docs/protocol/sdk.md" style="margin-left:0.35rem">SDK reference</a>
+      </aside>
+    </div>
+  </div>
+</section>
+    
+<section class="section section-light" id="example" aria-labelledby="example-title">
+  <div class="container">
+    <p class="section-kicker">Protocol walkthrough</p>
+    <h2 id="example-title">From request to verified receipt.</h2>
+    <p class="section-lead">Same triage story as API steps: register → connect GitHub → authorize → signal → receipt → revoke → deny.</p>
+    <span class="demo-note">Demonstration sequence · mirrors docs/WEDGE.md and local demos</span>
+    <div class="example-grid">
+      <div role="tablist" aria-label="Wedge steps" class="timeline">
+<button type="button" class="step-tab" role="tab" id="wedge-tab-0" aria-selected="true" aria-controls="wedge-panel" data-step="0">
+  <span class="step-index">01</span>
+  <span>
+    <strong>Register agent identity</strong>
+    <span class="detail">Create acpp:agent:… with an Ed25519 key pair.</span>
+  </span>
+</button>
+<button type="button" class="step-tab" role="tab" id="wedge-tab-1" aria-selected="false" aria-controls="wedge-panel" data-step="1">
+  <span class="step-index">02</span>
+  <span>
+    <strong>Connect GitHub once</strong>
+    <span class="detail">Workspace credential stays isolated from the agent.</span>
+  </span>
+</button>
+<button type="button" class="step-tab" role="tab" id="wedge-tab-2" aria-selected="false" aria-controls="wedge-panel" data-step="2">
+  <span class="step-index">03</span>
+  <span>
+    <strong>Grant scoped permission</strong>
+    <span class="detail">Resource + action, optional approval binding.</span>
+  </span>
+</button>
+<button type="button" class="step-tab" role="tab" id="wedge-tab-3" aria-selected="false" aria-controls="wedge-panel" data-step="3">
+  <span class="step-index">04</span>
+  <span>
+    <strong>Send signed signal</strong>
+    <span class="detail">Authenticated request for a protected GitHub action.</span>
+  </span>
+</button>
+<button type="button" class="step-tab" role="tab" id="wedge-tab-4" aria-selected="false" aria-controls="wedge-panel" data-step="4">
+  <span class="step-index">05</span>
+  <span>
+    <strong>Evaluate authorization</strong>
+    <span class="detail">Deny-by-default policy produces Allow or Deny.</span>
+  </span>
+</button>
+<button type="button" class="step-tab" role="tab" id="wedge-tab-5" aria-selected="false" aria-controls="wedge-panel" data-step="5">
+  <span class="step-index">06</span>
+  <span>
+    <strong>Execute allowed action</strong>
+    <span class="detail">Proof-bound GitHub issues.comment (or metadata read).</span>
+  </span>
+</button>
+<button type="button" class="step-tab" role="tab" id="wedge-tab-6" aria-selected="false" aria-controls="wedge-panel" data-step="6">
+  <span class="step-index">07</span>
+  <span>
+    <strong>Record verifiable receipt</strong>
+    <span class="detail">Chain links signal → decision → outcome.</span>
+  </span>
+</button>
+<button type="button" class="step-tab" role="tab" id="wedge-tab-7" aria-selected="false" aria-controls="wedge-panel" data-step="7">
+  <span class="step-index">08</span>
+  <span>
+    <strong>Revoke, then prove denial</strong>
+    <span class="detail">Next execute returns 403 after grant revoke.</span>
+  </span>
+</button></div>
+      <div class="receipt-card" id="wedge-panel" role="tabpanel" aria-labelledby="wedge-tab-0">
+        <h3 id="wedge-panel-title">Register agent identity</h3>
+        <p id="wedge-panel-detail" style="margin:0.65rem 0 0;color:#5B657A;font-size:0.95rem">Create acpp:agent:… with an Ed25519 key pair.</p>
+        <dl class="receipt-meta">
+          <div><dt>Route</dt><dd id="wedge-panel-meta">POST /v1/workspaces/{id}/identities</dd></div>
+          <div><dt>Agent</dt><dd class="mono">acpp:agent:…</dd></div>
+          <div><dt>Resource</dt><dd class="mono">github:repo:org/repo</dd></div>
+          <div><dt>Action</dt><dd class="mono">issues.comment</dd></div>
+        </dl>
+        <div class="receipt-status"><span class="dot" aria-hidden="true"></span><span id="wedge-panel-status">Step ready</span></div>
+        <p style="margin:1rem 0 0;font-size:0.85rem;color:#7A8499">Try the live inspector after starting the API: <a href="/receipts" style="color:#3B6FE0">/receipts</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+<script type="application/json" id="wedge-data">[{"title":"Register agent identity","detail":"Create acpp:agent:… with an Ed25519 key pair.","meta":"POST /v1/workspaces/{id}/identities"},{"title":"Connect GitHub once","detail":"Workspace credential stays isolated from the agent.","meta":"POST …/connections/github"},{"title":"Grant scoped permission","detail":"Resource + action, optional approval binding.","meta":"POST /v1/grants"},{"title":"Send signed signal","detail":"Authenticated request for a protected GitHub action.","meta":"POST /v1/signals"},{"title":"Evaluate authorization","detail":"Deny-by-default policy produces Allow or Deny.","meta":"POST /v1/authorization/evaluate"},{"title":"Execute allowed action","detail":"Proof-bound GitHub issues.comment (or metadata read).","meta":"POST /v1/github/actions/execute"},{"title":"Record verifiable receipt","detail":"Chain links signal → decision → outcome.","meta":"GET /v1/receipts/{id}"},{"title":"Revoke, then prove denial","detail":"Next execute returns 403 after grant revoke.","meta":"POST /v1/demo/wedge-revoke-proof"}]</script>
+    
+<section class="section section-dark section-elevated" id="integrations" aria-labelledby="integrations-title">
+  <div class="container">
+    <p class="section-kicker">Integrations</p>
+    <h2 id="integrations-title">Designed to work across agent systems.</h2>
+    <p class="section-lead">ACPP is a reusable protocol layer — not a lock-in to one agent framework. Status reflects this repository.</p>
+    <div class="integrations">
+<article class="integration">
+  <div class="integration-top">
+    <h3>GitHub</h3>
+    <span class="badge badge-available">Available</span>
+  </div>
+  <p>Connect once per workspace. Scoped grants gate issues.comment and repos.metadata.read.</p>
+  <a class="more" href="https://github.com/coppergateai/acpp/blob/main/docs/protocol/connections.md" rel="noopener noreferrer">Learn more →</a>
+</article>
+<article class="integration">
+  <div class="integration-top">
+    <h3>MCP</h3>
+    <span class="badge badge-experimental">Experimental</span>
+  </div>
+  <p>Gateway sketch and security helpers. Capabilities endpoint live; connect/invoke still sketch.</p>
+  <a class="more" href="https://github.com/coppergateai/acpp/blob/main/docs/protocol/mcp-integration.md" rel="noopener noreferrer">Learn more →</a>
+</article>
+<article class="integration">
+  <div class="integration-top">
+    <h3>A2A</h3>
+    <span class="badge badge-planned">Planned</span>
+  </div>
+  <p>Interoperability direction for agent-to-agent messaging. No connector shipped yet.</p>
+  <a class="more" href="https://github.com/coppergateai/acpp/blob/main/PRODUCT.md" rel="noopener noreferrer">Learn more →</a>
+</article></div>
+  </div>
+</section>
+    
+<section class="section section-dark" id="architecture" aria-labelledby="arch-title">
+  <div class="container">
+    <p class="section-kicker">Protocol architecture</p>
+    <h2 id="arch-title">A protocol layer, not another agent runtime.</h2>
+    <p class="section-lead">Agent runtimes keep doing their work. ACPP supplies identity, signals, authorization, and proof around consequential actions.</p>
+    <div class="arch" role="img" aria-label="Layered architecture: agent applications above ACPP above connected tools">
+      <div class="arch-layer arch-apps">
+        <strong>Agent applications / runtimes</strong>
+        <span>Orchestrators, tools, and workflows you already run</span>
+      </div>
+      <div class="arch-arrow" aria-hidden="true">↓</div>
+      <div class="arch-layer arch-acpp">
+        <strong>ACPP — identity, signals, authorization &amp; proof</strong>
+        <span>@acpp/identity · signals · policy · receipts · connectors</span>
+      </div>
+      <div class="arch-arrow" aria-hidden="true">↓</div>
+      <div class="arch-layer arch-tools">
+        <strong>Connected tools &amp; external systems</strong>
+        <span>GitHub today · MCP path experimental · more connectors later</span>
+      </div>
+    </div>
+  </div>
+</section>
+    
+<section class="final-cta" aria-labelledby="final-title">
+  <div class="container">
+    <svg class="final-mark" width="40" height="40" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ACPP">
+  <title>ACPP</title>
+  <path class="acpp-mark-fill" d="M16 1.5 28.5 8.5v15L16 30.5 3.5 23.5v-15L16 1.5Z"/>
+  <path class="acpp-mark-stroke" stroke-width="1.5" d="M16 1.5 28.5 8.5v15L16 30.5 3.5 23.5v-15L16 1.5Z"/>
+  <path class="acpp-mark-stroke" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M11 16.5c0-3 2.1-5 5-5s5 2 5 5c0 2.2-1.2 3.8-3.2 4.5L16 23l-1.8-2c-2-.7-3.2-2.3-3.2-4.5Z"/>
+  <circle class="acpp-mark-node" cx="16" cy="16.2" r="1.6"/>
+</svg>
+    <h2 id="final-title" style="margin-top:1.25rem">Give your agents a real identity.</h2>
+    <p>Make agent identity verifiable, permissions explicit, and consequential actions accountable.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="https://github.com/coppergateai/acpp/blob/main/docs/QUICKSTART.md">Get Started <span aria-hidden="true">→</span></a>
+      <a class="btn btn-secondary" href="https://github.com/coppergateai/acpp" rel="noopener noreferrer">Explore on GitHub</a>
+    </div>
+  </div>
+</section>
+  </main>
+  
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="brand" aria-label="ACPP home">
+    <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ACPP">
+  <title>ACPP</title>
+  <path class="acpp-mark-fill" d="M16 1.5 28.5 8.5v15L16 30.5 3.5 23.5v-15L16 1.5Z"/>
+  <path class="acpp-mark-stroke" stroke-width="1.5" d="M16 1.5 28.5 8.5v15L16 30.5 3.5 23.5v-15L16 1.5Z"/>
+  <path class="acpp-mark-stroke" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M11 16.5c0-3 2.1-5 5-5s5 2 5 5c0 2.2-1.2 3.8-3.2 4.5L16 23l-1.8-2c-2-.7-3.2-2.3-3.2-4.5Z"/>
+  <circle class="acpp-mark-node" cx="16" cy="16.2" r="1.6"/>
+</svg>
+    <span class="brand-word">ACPP</span>
+  </a>
+      <p>Open identity, authorization, and proof protocol for AI agents. Community / self-host first.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Protocol</h4>
+      <ul>
+        <li><a href="#protocol">Principles</a></li>
+        <li><a href="#scenario">Scenario</a></li>
+        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="https://github.com/coppergateai/acpp/blob/main/PRODUCT.md">PRODUCT.md</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Developers</h4>
+      <ul>
+        <li><a href="https://github.com/coppergateai/acpp/blob/main/docs/QUICKSTART.md">Quickstart</a></li>
+        <li><a href="https://github.com/coppergateai/acpp/blob/main/docs/protocol/sdk.md">SDK</a></li>
+        <li><a href="https://github.com/coppergateai/acpp/tree/main/docs/protocol">Documentation</a></li>
+        <li><a href="https://github.com/coppergateai/acpp">GitHub</a></li>
+        <li><a href="#integrations">Integrations</a></li>
+        <li><a href="/receipts">Receipt inspector</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <span>© 2026 Coppergate / ACPP</span>
+    <span><a href="https://github.com/coppergateai/acpp/blob/main/LICENSE">MIT License</a></span>
+  </div>
+</footer>
+  <script>
+(function () {
+  var header = document.getElementById("site-header");
+  var toggle = document.getElementById("nav-toggle");
+  var mobile = document.getElementById("mobile-nav");
+  var copyBtn = document.getElementById("copy-code");
+  var raw = document.getElementById("sdk-sample-raw");
+  var wedgeDataEl = document.getElementById("wedge-data");
+  var wedgeSteps = [];
+  try {
+    wedgeSteps = JSON.parse(wedgeDataEl ? wedgeDataEl.textContent || "[]" : "[]");
+  } catch (e) {
+    wedgeSteps = [];
+  }
+
+  function headerTone() {
+    if (!header) return;
+    var probeY = Math.min(header.getBoundingClientRect().bottom + 8, window.innerHeight - 1);
+    var probeX = Math.min(Math.max(window.innerWidth / 2, 24), window.innerWidth - 24);
+    var el = document.elementFromPoint(probeX, probeY);
+    var light = false;
+    while (el && el !== document.documentElement) {
+      if (el.classList && el.classList.contains("section-light")) {
+        light = true;
+        break;
+      }
+      el = el.parentElement;
+    }
+    header.classList.toggle("on-light", light);
+  }
+
+  function onScroll() {
+    if (!header) return;
+    if (window.scrollY > 8) header.classList.add("is-scrolled");
+    else header.classList.remove("is-scrolled");
+    headerTone();
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", headerTone, { passive: true });
+  onScroll();
+
+  if (toggle && mobile) {
+    toggle.addEventListener("click", function () {
+      var open = mobile.classList.toggle("open");
+      mobile.hidden = !open;
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    });
+    mobile.querySelectorAll("a").forEach(function (a) {
+      a.addEventListener("click", function () {
+        mobile.classList.remove("open");
+        mobile.hidden = true;
+        toggle.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
+
+  if (copyBtn && raw) {
+    copyBtn.addEventListener("click", async function () {
+      try {
+        await navigator.clipboard.writeText((raw.textContent || "").replace(/\u003c/g, "<"));
+        copyBtn.textContent = "Copied";
+        copyBtn.classList.add("copied");
+        setTimeout(function () {
+          copyBtn.textContent = "Copy";
+          copyBtn.classList.remove("copied");
+        }, 1600);
+      } catch (e) {
+        copyBtn.textContent = "Failed";
+      }
+    });
+  }
+
+  var tabs = document.querySelectorAll(".step-tab");
+  var title = document.getElementById("wedge-panel-title");
+  var detail = document.getElementById("wedge-panel-detail");
+  var meta = document.getElementById("wedge-panel-meta");
+  var status = document.getElementById("wedge-panel-status");
+  var panel = document.getElementById("wedge-panel");
+
+  function selectStep(index) {
+    var step = wedgeSteps[index];
+    if (!step) return;
+    tabs.forEach(function (tab, i) {
+      tab.setAttribute("aria-selected", i === index ? "true" : "false");
+    });
+    if (title) title.textContent = step.title;
+    if (detail) detail.textContent = step.detail;
+    if (meta) meta.textContent = step.meta;
+    if (status) {
+      status.textContent = index === wedgeSteps.length - 1
+        ? "Revoke proves subsequent deny (403)"
+        : "Demonstration step " + (index + 1) + " of " + wedgeSteps.length;
+    }
+    if (panel) panel.setAttribute("aria-labelledby", "wedge-tab-" + index);
+  }
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      selectStep(Number(tab.getAttribute("data-step") || "0"));
+    });
+    tab.addEventListener("keydown", function (ev) {
+      var i = Number(tab.getAttribute("data-step") || "0");
+      if (ev.key === "ArrowDown" || ev.key === "ArrowRight") {
+        ev.preventDefault();
+        var next = Math.min(i + 1, tabs.length - 1);
+        tabs[next].focus();
+        selectStep(next);
+      } else if (ev.key === "ArrowUp" || ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        var prev = Math.max(i - 1, 0);
+        tabs[prev].focus();
+        selectStep(prev);
+      }
+    });
+  });
+})();</script>
+</body>
+</html>
