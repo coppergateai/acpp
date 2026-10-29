@@ -44,6 +44,7 @@ Prerequisites:
 1. Create workspace (if needed) and attach GitHub App to **coppergateai** (include `acpp`).
 2. Create project whose primary repo is `coppergateai/acpp`.
 3. CI job name on this repo is **`check`** (see `.github/workflows/ci.yml`).
+4. Before delivery / Accept, run `pnpm assert:delivery-head` on the PR branch. On `delivery_error` (branch head moved), run `pnpm sync:delivery-head`, wait for CI on the reported head SHA, then Retry the task.
 
 ## Prove checklist
 
