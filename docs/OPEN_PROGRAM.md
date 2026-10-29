@@ -77,3 +77,10 @@ Do not invent work for: chat/messaging app, agent marketplace, reputation scores
 5. Architecture writeback flips this row to **Done** after merge.
 6. Accept produces a Ship Receipt (Open ID, spend, fitness, CI, writeback).
 7. Phase 1 is complete only when PRODUCT §13.1 objectives 1–9 and §23 checklists are demonstrably green end-to-end (wedge proof).
+
+## Bug scout (continuous)
+
+| Status | ID | Title | Notes |
+| --- | --- | --- | --- |
+| Open | AG-003 | Fix lockfile_out_of_sync: package.json changed without pnpm-lock.yaml / package-lock.json / yarn.lock — run the package  | errorCode=lockfile_out_of_sync — n=14 — package.json changed without pnpm-lock.yaml / package-lock.json / yarn.lock — run the package manage — refs: run:f970f327; run:80db19a6; run:a577e88d; run:32689d8e — <!-- bug-scout:fp=lockfile_out_of_sync_38e1e310 --> |
+| Open | AG-004 | Fix delivery_error: branch head moved: expected b5ba2b04142b got 9856213ce924 | errorCode=delivery_error — n=11 — branch head moved: expected b5ba2b04142b got 9856213ce924 — refs: run:65c1dbfb; run:eaa97406; run:412eddf4; run:a9592a96 — <!-- bug-scout:fp=delivery_error_123fa312 --> |
