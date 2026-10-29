@@ -83,4 +83,4 @@ Do not invent work for: chat/messaging app, agent marketplace, reputation scores
 | Status | ID | Title | Notes |
 | --- | --- | --- | --- |
 | Done | AG-003 | Fix lockfile_out_of_sync: package.json changed without pnpm-lock.yaml — run the package manager | `pnpm fix:lockfile` + assert emits `errorCode=lockfile_out_of_sync`; `docs/ship-receipts/AG-003.md` |
-| Open | AG-004 | Fix delivery_error: branch head moved: expected b5ba2b04142b got 9856213ce924 | errorCode=delivery_error — n=11 — branch head moved: expected b5ba2b04142b got 9856213ce924 — refs: run:65c1dbfb; run:eaa97406; run:412eddf4; run:a9592a96 — <!-- bug-scout:fp=delivery_error_123fa312 --> |
+| Done | AG-004 | Fix delivery_error: branch head moved: expected b5ba2b04142b got 9856213ce924 | `pnpm assert:delivery-head` + `pnpm sync:delivery-head`; CI head pin + `cancel-in-progress: false`; `docs/ship-receipts/AG-004.md` |

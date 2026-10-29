@@ -6,6 +6,7 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **AG-004** — Delivery head guard: `pnpm assert:delivery-head` and `pnpm sync:delivery-head` emit structured `errorCode=delivery_error` when a pinned SHA or origin tip drifts; CI validates the workflow head SHA and avoids cancelling in-flight runs on rapid pushes. See [`docs/ship-receipts/AG-004.md`](./ship-receipts/AG-004.md).
 - **AG-003** — Lockfile remediation: `pnpm fix:lockfile`, structured `errorCode=lockfile_out_of_sync` from `pnpm assert:lockfile`, and git co-change detection when `package.json` edits omit `pnpm-lock.yaml`. See [`docs/ship-receipts/AG-003.md`](./ship-receipts/AG-003.md).
 - **SEC-012** — Approval inbox with pending `ApprovalRequest` model, `GrantStore` create/list/decide (expire + payload-binding integrity), and HTTP `POST /v1/approvals/requests`, `GET /v1/approvals`, `POST /v1/approvals/{id}/decide` (direct `POST /v1/approvals` retained). See [`docs/protocol/authz.md`](./protocol/authz.md).
 - **P-021** — Credential rotate/revoke on `ConnectionStore` (`POST /v1/connections/{id}/rotate|revoke`), `ExecutionStore` lifecycle states, GitHub execute wiring with `outcome_unknown` mapping and no blind retry for `issues.comment`. See [`docs/protocol/connections.md`](./protocol/connections.md).
