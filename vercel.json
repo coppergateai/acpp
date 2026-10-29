@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @acpp/receipts build && pnpm --filter @acpp/web build",
+  "buildCommand": "pnpm --filter @acpp/core build && pnpm --filter @acpp/policy build && pnpm --filter @acpp/receipts build && pnpm --filter @acpp/web build",
   "outputDirectory": "apps/web/public",
   "headers": [
     {
