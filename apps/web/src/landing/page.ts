@@ -12,6 +12,7 @@ import {
   renderIntegrations,
   renderNav,
   renderPrinciples,
+  renderScenario,
 } from "./sections.js";
 import { escapeHtml } from "../inspector.js";
 
@@ -49,6 +50,7 @@ export function renderLandingPage(): string {
   <main>
     ${renderHero()}
     ${renderPrinciples()}
+    ${renderScenario()}
     ${renderHowItWorks()}
     ${renderDevelopers()}
     ${renderExample()}

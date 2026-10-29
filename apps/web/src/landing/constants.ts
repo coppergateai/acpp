@@ -164,6 +164,42 @@ const client = new AcppHostedClient({
 });
 await client.submitSignal(envelope);`;
 
+/** Narrative scenario for the landing page — locked GitHub wedge in human terms. */
+export const SCENARIO = {
+  kicker: "Real-life scenario",
+  title: "A triage agent comments on a GitHub issue.",
+  lead:
+    "Your platform team connects GitHub once. An incident-response agent gets a narrow grant to post on issues — not the org token. Every comment leaves a receipt; revoke the grant and the next attempt is denied.",
+  setting: {
+    agent: "acpp:agent:triage-bot",
+    resource: "github:repo:acme/payments",
+    action: "issues.comment",
+    issue: "#4821 · checkout latency spike",
+  },
+  beats: [
+    {
+      who: "Ops",
+      what: "An alert opens issue #4821. Someone needs a status note on the thread — not a human hunting for a shared PAT.",
+    },
+    {
+      who: "Agent",
+      what: "TriageBot sends a signed signal: comment on #4821 with the latest findings.",
+    },
+    {
+      who: "ACPP",
+      what: "Verifies the agent identity, evaluates the grant (issues.comment only), and allows the action.",
+    },
+    {
+      who: "GitHub",
+      what: "The comment posts through the workspace connection. Credential never sits on the agent.",
+    },
+    {
+      who: "Receipt",
+      what: "Audit trail links signal → decision → outcome. Later, security revokes the grant — the next comment returns deny.",
+    },
+  ],
+} as const;
+
 export const WEDGE_STEPS = [
   {
     title: "Register agent identity",

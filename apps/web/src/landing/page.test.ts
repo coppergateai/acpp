@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DOCS, GITHUB_REPO, INTEGRATIONS, PROTOCOL_LAYERS, SDK_CODE_SAMPLE } from "./constants.ts";
+import { DOCS, GITHUB_REPO, INTEGRATIONS, PROTOCOL_LAYERS, SCENARIO, SDK_CODE_SAMPLE } from "./constants.ts";
 import { renderLandingPage } from "./page.ts";
 
 describe("@acpp/web landing", () => {
@@ -19,6 +19,18 @@ describe("@acpp/web landing", () => {
     assert.match(html, /rel="canonical"/);
     assert.match(html, /favicon\.svg/);
     assert.match(html, /MIT License/);
+  });
+
+  it("renders a concrete GitHub triage scenario", () => {
+    const html = renderLandingPage();
+    assert.ok(html.includes(SCENARIO.title));
+    assert.ok(html.includes(SCENARIO.setting.agent));
+    assert.ok(html.includes(SCENARIO.setting.action));
+    assert.match(html, /id="scenario"/);
+    assert.match(html, /href="#scenario"/);
+    for (const beat of SCENARIO.beats) {
+      assert.ok(html.includes(beat.who), beat.who);
+    }
   });
 
   it("labels protocol layers and integrations honestly", () => {

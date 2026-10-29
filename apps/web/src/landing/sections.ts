@@ -3,6 +3,7 @@ import {
   GITHUB_REPO,
   INTEGRATIONS,
   PROTOCOL_LAYERS,
+  SCENARIO,
   SDK_CODE_SAMPLE,
   WEDGE_STEPS,
 } from "./constants.js";
@@ -108,6 +109,7 @@ export function renderNav(): string {
     ${renderWordmark()}
     <ul class="nav-links" role="list">
       <li><a href="#protocol">Protocol</a></li>
+      <li><a href="#scenario">Scenario</a></li>
       <li><a href="#how-it-works">How It Works</a></li>
       <li><a href="#developers">Developers</a></li>
       <li><a href="#integrations">Integrations</a></li>
@@ -123,6 +125,7 @@ export function renderNav(): string {
   </div>
   <div class="mobile-nav" id="mobile-nav" hidden>
     <a href="#protocol">Protocol</a>
+    <a href="#scenario">Scenario</a>
     <a href="#how-it-works">How It Works</a>
     <a href="#developers">Developers</a>
     <a href="#integrations">Integrations</a>
@@ -185,6 +188,47 @@ export function renderPrinciples(): string {
           <span>intent</span><span class="x">≠</span><span>execute</span>
         </div>
       </article>
+    </div>
+  </div>
+</section>`;
+}
+
+export function renderScenario(): string {
+  const beats = SCENARIO.beats
+    .map(
+      (beat, i) => `
+<li class="scenario-beat" style="--beat-i:${i}">
+  <span class="scenario-beat-index" aria-hidden="true">${String(i + 1).padStart(2, "0")}</span>
+  <div>
+    <p class="scenario-beat-who">${escapeHtml(beat.who)}</p>
+    <p class="scenario-beat-what">${escapeHtml(beat.what)}</p>
+  </div>
+</li>`,
+    )
+    .join("");
+
+  const { setting } = SCENARIO;
+
+  return `
+<section class="section section-dark section-elevated" id="scenario" aria-labelledby="scenario-title">
+  <div class="container">
+    <p class="section-kicker">${escapeHtml(SCENARIO.kicker)}</p>
+    <h2 id="scenario-title">${escapeHtml(SCENARIO.title)}</h2>
+    <p class="section-lead">${escapeHtml(SCENARIO.lead)}</p>
+    <div class="scenario-layout">
+      <ol class="scenario-beats" role="list">${beats}</ol>
+      <aside class="scenario-stage" aria-label="Scenario setup">
+        <p class="scenario-stage-label">Monday · payments repo</p>
+        <h3>${escapeHtml(setting.issue)}</h3>
+        <dl class="scenario-facts">
+          <div><dt>Agent</dt><dd class="mono">${escapeHtml(setting.agent)}</dd></div>
+          <div><dt>Resource</dt><dd class="mono">${escapeHtml(setting.resource)}</dd></div>
+          <div><dt>Allowed</dt><dd class="mono">${escapeHtml(setting.action)}</dd></div>
+          <div><dt>Not allowed</dt><dd class="mono">repos.write · deploy</dd></div>
+        </dl>
+        <p class="scenario-outcome"><span class="dot" aria-hidden="true"></span>Comment posted · receipt on file · revoke proves deny</p>
+        <a class="scenario-link" href="#example">See the protocol steps →</a>
+      </aside>
     </div>
   </div>
 </section>`;
@@ -263,9 +307,9 @@ export function renderExample(): string {
   return `
 <section class="section section-light" id="example" aria-labelledby="example-title">
   <div class="container">
-    <p class="section-kicker">Real-world example</p>
+    <p class="section-kicker">Protocol walkthrough</p>
     <h2 id="example-title">From request to verified receipt.</h2>
-    <p class="section-lead">The locked wedge: register → connect GitHub → authorize → signal → receipt → revoke → deny.</p>
+    <p class="section-lead">Same triage story as API steps: register → connect GitHub → authorize → signal → receipt → revoke → deny.</p>
     <span class="demo-note">Demonstration sequence · mirrors docs/WEDGE.md and local demos</span>
     <div class="example-grid">
       <div role="tablist" aria-label="Wedge steps" class="timeline">${steps}</div>
@@ -366,6 +410,7 @@ export function renderFooter(): string {
       <h4>Protocol</h4>
       <ul>
         <li><a href="#protocol">Principles</a></li>
+        <li><a href="#scenario">Scenario</a></li>
         <li><a href="#how-it-works">How it works</a></li>
         <li><a href="#architecture">Architecture</a></li>
         <li><a href="${escapeHtml(DOCS.product)}">PRODUCT.md</a></li>
