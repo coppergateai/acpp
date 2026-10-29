@@ -82,5 +82,5 @@ Do not invent work for: chat/messaging app, agent marketplace, reputation scores
 
 | Status | ID | Title | Notes |
 | --- | --- | --- | --- |
-| Open | AG-003 | Fix lockfile_out_of_sync: package.json changed without pnpm-lock.yaml / package-lock.json / yarn.lock — run the package  | errorCode=lockfile_out_of_sync — n=14 — package.json changed without pnpm-lock.yaml / package-lock.json / yarn.lock — run the package manage — refs: run:f970f327; run:80db19a6; run:a577e88d; run:32689d8e — <!-- bug-scout:fp=lockfile_out_of_sync_38e1e310 --> |
+| Done | AG-003 | Fix lockfile_out_of_sync: package.json changed without pnpm-lock.yaml — run the package manager | `pnpm fix:lockfile` + assert emits `errorCode=lockfile_out_of_sync`; `docs/ship-receipts/AG-003.md` |
 | Open | AG-004 | Fix delivery_error: branch head moved: expected b5ba2b04142b got 9856213ce924 | errorCode=delivery_error — n=11 — branch head moved: expected b5ba2b04142b got 9856213ce924 — refs: run:65c1dbfb; run:eaa97406; run:412eddf4; run:a9592a96 — <!-- bug-scout:fp=delivery_error_123fa312 --> |
