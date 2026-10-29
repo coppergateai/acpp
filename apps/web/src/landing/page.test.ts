@@ -11,6 +11,9 @@ describe("@acpp/web landing", () => {
     assert.match(html, /Identity ≠ Authority/);
     assert.match(html, /Discovery ≠ Consent/);
     assert.match(html, /Signal ≠ Execution/);
+    assert.doesNotMatch(html, /PRODUCT §5/);
+    assert.doesNotMatch(html, /class="neq"/);
+    assert.match(html, /See a real scenario/);
     assert.match(html, /AcppHostedClient/);
     assert.match(html, /signSignalEnvelope/);
     assert.ok(html.includes(GITHUB_REPO));

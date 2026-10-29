@@ -16,12 +16,30 @@ export function landingClientScript(): string {
     wedgeSteps = [];
   }
 
+  function headerTone() {
+    if (!header) return;
+    var probeY = Math.min(header.getBoundingClientRect().bottom + 8, window.innerHeight - 1);
+    var probeX = Math.min(Math.max(window.innerWidth / 2, 24), window.innerWidth - 24);
+    var el = document.elementFromPoint(probeX, probeY);
+    var light = false;
+    while (el && el !== document.documentElement) {
+      if (el.classList && el.classList.contains("section-light")) {
+        light = true;
+        break;
+      }
+      el = el.parentElement;
+    }
+    header.classList.toggle("on-light", light);
+  }
+
   function onScroll() {
     if (!header) return;
     if (window.scrollY > 8) header.classList.add("is-scrolled");
     else header.classList.remove("is-scrolled");
+    headerTone();
   }
   window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", headerTone, { passive: true });
   onScroll();
 
   if (toggle && mobile) {

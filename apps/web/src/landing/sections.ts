@@ -113,7 +113,6 @@ export function renderNav(): string {
       <li><a href="#how-it-works">How It Works</a></li>
       <li><a href="#developers">Developers</a></li>
       <li><a href="#integrations">Integrations</a></li>
-      <li><a href="${escapeHtml(DOCS.protocol)}">Documentation</a></li>
     </ul>
     <div class="nav-actions">
       <a class="btn btn-ghost" href="${escapeHtml(GITHUB_REPO)}" rel="noopener noreferrer">GitHub</a>
@@ -144,12 +143,11 @@ export function renderHero(): string {
       <p class="eyebrow">Open Protocol · Agent Identity &amp; Proof</p>
       <h1>Identity for AI agents.</h1>
       <p class="support">Verifiable identity. Explicit permissions. Accountable actions.</p>
-      <p class="lead">ACPP gives AI agents a verifiable identity, makes permissions explicit, and creates evidence of consequential actions across connected systems.</p>
+      <p class="lead">ACPP gives agents a cryptographically verifiable identity, scoped permissions, and receipts for every consequential action — starting with GitHub.</p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="${escapeHtml(DOCS.quickstart)}">Get Started <span aria-hidden="true">→</span></a>
-        <a class="btn btn-secondary" href="#protocol">Explore the Protocol</a>
+        <a class="btn btn-secondary" href="#scenario">See a real scenario</a>
       </div>
-      <p class="hero-micro">Open protocol. Developer-first. Built for interoperable agent systems.</p>
     </div>
     ${protocolViz()}
   </div>
@@ -162,10 +160,9 @@ export function renderPrinciples(): string {
   <div class="container">
     <p class="section-kicker">Trust principles</p>
     <h2 id="principles-title">Identity is not authority.</h2>
-    <p class="section-lead">Three separations that keep agent systems accountable — grounded in PRODUCT §5.</p>
+    <p class="section-lead">Three separations that keep agent systems accountable.</p>
     <div class="principles">
       <article class="principle">
-        <p class="neq">IDENTITY ≠ AUTHORITY</p>
         <h3>Identity ≠ Authority</h3>
         <p>Knowing which agent is acting does not automatically grant it permission. Every protected action is evaluated against an explicit grant.</p>
         <div class="principle-diagram" aria-hidden="true">
@@ -173,7 +170,6 @@ export function renderPrinciples(): string {
         </div>
       </article>
       <article class="principle">
-        <p class="neq">DISCOVERY ≠ CONSENT</p>
         <h3>Discovery ≠ Consent</h3>
         <p>Finding an agent or capability does not authorize interaction or execution. Discovery returns only what policy already permits.</p>
         <div class="principle-diagram" aria-hidden="true">
@@ -181,7 +177,6 @@ export function renderPrinciples(): string {
         </div>
       </article>
       <article class="principle">
-        <p class="neq">SIGNAL ≠ EXECUTION</p>
         <h3>Signal ≠ Execution</h3>
         <p>A signed signal communicates intent or information. Execution requires the authorization path — signals never bypass policy.</p>
         <div class="principle-diagram" aria-hidden="true">
@@ -253,7 +248,6 @@ export function renderHowItWorks(): string {
     <h2 id="how-title">From agent identity to verifiable action.</h2>
     <p class="section-lead">A protocol layer that separates identity, intent, authorization, execution, and evidence. Status labels reflect what ships in this repository today.</p>
     <div class="layers">${layers}</div>
-    <p class="layers-mobile-note">Swipe to explore each protocol layer.</p>
   </div>
 </section>`;
 }
