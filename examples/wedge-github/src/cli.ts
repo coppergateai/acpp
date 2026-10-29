@@ -10,9 +10,9 @@
  */
 import assert from "node:assert/strict";
 import { createApiServer } from "@acpp/api";
-import { runWedgeHttpDemo } from "./http-demo.ts";
+import { runWedgeHttpDemo } from "./http-demo.js";
 
-async function mockGithubFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+const mockGithubFetch: typeof fetch = async (input, init) => {
   const url = String(input);
   if (url.includes("/issues/") && init?.method === "POST") {
     return new Response(JSON.stringify({ id: 1, html_url: "https://example.test/1" }), {
@@ -24,7 +24,7 @@ async function mockGithubFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     status: 200,
     headers: { "content-type": "application/json" },
   });
-}
+};
 
 async function main(): Promise<void> {
   const external = process.env.ACPP_API_URL?.replace(/\/$/, "");
