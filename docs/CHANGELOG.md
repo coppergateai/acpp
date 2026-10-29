@@ -6,6 +6,7 @@ All notable user-visible changes to the ACPP monorepo.
 
 ### Added
 
+- **AG-003** — Lockfile remediation: `pnpm fix:lockfile`, structured `errorCode=lockfile_out_of_sync` from `pnpm assert:lockfile`, and git co-change detection when `package.json` edits omit `pnpm-lock.yaml`. See [`docs/ship-receipts/AG-003.md`](./ship-receipts/AG-003.md).
 - **SEC-012** — Approval inbox with pending `ApprovalRequest` model, `GrantStore` create/list/decide (expire + payload-binding integrity), and HTTP `POST /v1/approvals/requests`, `GET /v1/approvals`, `POST /v1/approvals/{id}/decide` (direct `POST /v1/approvals` retained). See [`docs/protocol/authz.md`](./protocol/authz.md).
 - **P-021** — Credential rotate/revoke on `ConnectionStore` (`POST /v1/connections/{id}/rotate|revoke`), `ExecutionStore` lifecycle states, GitHub execute wiring with `outcome_unknown` mapping and no blind retry for `issues.comment`. See [`docs/protocol/connections.md`](./protocol/connections.md).
 - **AG-001 / AG-002** — CI job name `check` and `pnpm assert:lockfile` / `scripts/assert-lockfile.mjs` documented as Done (already present).
