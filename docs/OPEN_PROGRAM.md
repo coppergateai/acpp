@@ -84,3 +84,5 @@ Do not invent work for: chat/messaging app, agent marketplace, reputation scores
 | --- | --- | --- | --- |
 | Done | AG-003 | Fix lockfile_out_of_sync: package.json changed without pnpm-lock.yaml — run the package manager | `pnpm fix:lockfile` + assert emits `errorCode=lockfile_out_of_sync`; `docs/ship-receipts/AG-003.md` |
 | Done | AG-004 | Fix delivery_error: branch head moved: expected b5ba2b04142b got 9856213ce924 | `pnpm assert:delivery-head` + `pnpm sync:delivery-head`; CI head pin + `cancel-in-progress: false`; `docs/ship-receipts/AG-004.md` |
+| Open | AG-005 | Fix delivery_error: findPrByHead failed (401) | errorCode=delivery_error — n=2 — findPrByHead failed (401) — refs: run:9bea73ad; run:939c1424 — <!-- bug-scout:fp=delivery_error_d88cffac --> |
+| Open | AG-006 | Fix forbidden_secret: Secret or token material refused in packages/acpp-mcp/src/index.test.ts | errorCode=forbidden_secret — n=1 — Secret or token material refused in packages/acpp-mcp/src/index.test.ts — refs: run:94ba170d — <!-- bug-scout:fp=forbidden_secret_67fc7ec6 --> |
